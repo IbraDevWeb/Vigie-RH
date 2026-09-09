@@ -49,14 +49,14 @@ describe("legal rule engine — current right to work", () => {
     expect(result.workAuthorization).toBe("review");
   });
 
-  it("keeps an expired employee document blocked even if the old authorization is declared covered", () => {
+  it("forbids work on an expired employee document while preserving review of any separate continuation basis", () => {
     const result = assessCase({
       ...base,
       permitValidUntil: "2026-09-01",
       workAuthorizationGrantedForContract: true,
     }, now);
 
-    expect(result.status).toBe("blocked");
+    expect(result.status).toBe("review_required");
     expect(result.canWorkNow).toBe(false);
     expect(result.findings.some((finding) => finding.id === "expired")).toBe(true);
   });
