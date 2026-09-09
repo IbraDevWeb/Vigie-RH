@@ -6,6 +6,7 @@ import { studentFormalityRules } from "./student-formality.rules";
 import { renewalRules } from "./renewal.rules";
 import { modificationRules } from "./modification.rules";
 import { canWorkRules } from "./can-work.rules";
+import { terminationRules } from "./termination.rules";
 import { actionRules } from "./action.rules";
 
 export const legalRules: LegalRule[] = [
@@ -14,6 +15,7 @@ export const legalRules: LegalRule[] = [
   ...renewalRules,
   ...modificationRules,
   ...canWorkRules,
+  ...terminationRules,
   ...employmentRules,
   ...studentFormalityRules,
   ...actionRules,
