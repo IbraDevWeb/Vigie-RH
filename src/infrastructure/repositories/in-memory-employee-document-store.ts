@@ -8,6 +8,13 @@ export class InMemoryEmployeeDocumentStore implements EmployeeDocumentStore {
     this.records.push(structuredClone(record));
   }
 
+  async listByOrganization(organizationId: string): Promise<EmployeeDocumentRecord[]> {
+    return this.records
+      .filter((record) => record.organizationId === organizationId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((record) => structuredClone(record));
+  }
+
   async listByEmployee(employeeId: string, organizationId: string): Promise<EmployeeDocumentRecord[]> {
     return this.records
       .filter((record) => record.employeeId === employeeId && record.organizationId === organizationId)
