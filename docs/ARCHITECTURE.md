@@ -27,7 +27,7 @@ Le domaine applique une stratégie fail-closed : lorsqu'une information juridiqu
 
 Les cinq parcours principaux sont isolés par règles et/ou étapes dédiées : recruter, renouveler, modifier, contrôler le droit au travail actuel et rompre. La branche « Rompre » ne transforme jamais automatiquement la perte du droit au travail en décision de licenciement.
 
-Le domaine `employee` distingue désormais le read-model de démonstration utilisé par GitHub Pages des records persistants serveur pour les salariés et leurs métadonnées documentaires.
+Le domaine `employee` distingue le read-model de démonstration utilisé par GitHub Pages des records persistants serveur pour les salariés et leurs métadonnées documentaires. Le domaine `compliance` contient maintenant le record de tâche, ses états, sévérités et validations.
 
 ## Application
 Deux usages juridiques sont distincts :
@@ -36,7 +36,9 @@ Deux usages juridiques sont distincts :
 
 Le contexte applicatif d'un acteur contient `userId`, `organizationId` et un rôle (`owner`, `hr`, `advisor`, `readonly`). Les permissions sont vérifiées dans la couche application, pas dans React.
 
-Les opérations persistantes sur salariés et documents suivent le même principe : les use-cases reçoivent des ports, vérifient le RBAC et transportent explicitement l'organisation de l'acteur.
+Les opérations persistantes sur assessments, salariés, documents et tâches suivent le même principe : les use-cases reçoivent des ports, vérifient le RBAC et transportent explicitement l'organisation de l'acteur.
+
+La création d'une tâche vérifie dans la couche application que ses références optionnelles vers un salarié ou un assessment existent dans l'organisation courante. Le changement d'état est séparé des autres mutations et gère `completedAt`.
 
 En mode serveur, l'API `/api/analyse` utilise `createForeignWorkerAssessment`. La réponse contient un `assessmentId` et le `result` du moteur.
 
@@ -47,18 +49,21 @@ Ports et adapters présents :
 - `AssessmentRepository` avec adapters mémoire et PostgreSQL ;
 - `EmployeeStore` avec adapters mémoire et PostgreSQL ;
 - `EmployeeDocumentStore` avec adapters mémoire et PostgreSQL ;
+- `ComplianceTaskStore` avec adapters mémoire et PostgreSQL ;
 - `EmployeeRepository` historique pour le read-model de démonstration GitHub Pages.
 
 Les stores PostgreSQL sont tenant-scoped. Chaque opération reçoit `organizationId` et passe par `withPostgresTenant`, qui renseigne `vigie.organization_id` à l'intérieur d'une transaction avant les requêtes métier.
 
 Les providers sélectionnent PostgreSQL lorsque `DATABASE_URL` est défini. Le fallback mémoire est interdit en environnement serveur de production afin d'éviter une perte silencieuse de données.
 
-Le schéma PostgreSQL est décrit dans `db/schema.sql`. `db/rls.sql` active des policies Row-Level Security sur les tables tenant-scoped. Pour `employee_documents`, une clé étrangère composite `(employee_id, organization_id)` renforce en base l'interdiction de rattacher un document à un salarié d'une autre organisation.
+Le schéma PostgreSQL est décrit dans `db/schema.sql`. `db/rls.sql` active des policies Row-Level Security sur les tables tenant-scoped. Des clés étrangères composites renforcent l'intégrité tenant des liens document → salarié, assessment → salarié et tâche → salarié/assessment. Le futur utilisateur assigné à une tâche doit également correspondre à un membership de la même organisation.
 
 ### Identité serveur
 `resolveServerActor()` fournit uniquement un acteur de démonstration en environnement de développement. En production serveur, aucun utilisateur implicite n'est créé : tant qu'un véritable fournisseur d'identité/session n'est pas raccordé, l'API échoue explicitement.
 
 Le rôle envoyé par un navigateur ne doit jamais devenir une source d'autorité. Le futur provider d'identité devra résoudre l'utilisateur authentifié puis son membership dans `organization_members`.
+
+L'API des tâches n'accepte pas encore d'assignation utilisateur afin de ne pas contourner cette future résolution de membership.
 
 ### Adapter GitHub Pages
 GitHub Pages ne peut pas exécuter de route POST Next.js. Le build Pages utilise donc `StaticPagesAnalysisBridge`, un adapter d'infrastructure client qui intercepte uniquement les appels d'analyse et exécute `assessForeignWorkerCase` dans le navigateur.
@@ -103,21 +108,23 @@ Les colonnes `extracted_fields`, `extraction_confidence`, `confirmed_by_user_id`
 
 ## Production target
 Déjà amorcé :
-- PostgreSQL pour assessments, salariés et métadonnées documentaires ;
+- PostgreSQL pour assessments, salariés, métadonnées documentaires et tâches de conformité ;
 - isolation tenant applicative + policies RLS ;
 - RBAC applicatif owner / HR / advisor / read-only ;
-- intégrité tenant renforcée pour le lien document → salarié.
+- intégrité tenant renforcée entre les principales entités persistées.
 
 À raccorder avant un usage réel :
 - fournisseur d'identité/session et résolution des memberships ;
+- génération contrôlée des tâches depuis les résultats du moteur ;
+- read-model serveur de conformité et raccordement du dashboard ;
 - stockage objet S3 compatible ;
 - chiffrement applicatif des documents ;
 - antivirus / contrôles de fichier ;
 - OCR/extraction avec confirmation humaine ;
-- persistence des tâches et audit log append-only ;
+- audit log append-only ;
 - queue pour rappels et synchronisations ;
 - observabilité ;
 - import légal versionné et signé ;
 - tests E2E sur les parcours critiques.
 
-Voir aussi `docs/PERSISTENCE-RBAC.md`, `docs/EMPLOYEE-PERSISTENCE.md` et `docs/EMPLOYEE-DOCUMENTS.md`.
+Voir aussi `docs/PERSISTENCE-RBAC.md`, `docs/EMPLOYEE-PERSISTENCE.md`, `docs/EMPLOYEE-DOCUMENTS.md` et `docs/COMPLIANCE-TASKS.md`.
