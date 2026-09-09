@@ -3,6 +3,7 @@ import type { AppliedRuleReference, AssessmentInput, AssessmentResult } from "@/
 export interface AssessmentRecord {
   id: string;
   organizationId: string;
+  employeeId: string | null;
   createdByUserId: string;
   inputSnapshot: AssessmentInput;
   resultSnapshot: AssessmentResult;
@@ -13,4 +14,5 @@ export interface AssessmentRecord {
 export interface AssessmentRepository {
   save(record: AssessmentRecord): Promise<void>;
   findById(id: string, organizationId: string): Promise<AssessmentRecord | null>;
+  listByEmployee(employeeId: string, organizationId: string): Promise<AssessmentRecord[]>;
 }
