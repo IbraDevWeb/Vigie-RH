@@ -29,6 +29,7 @@ const assessmentSchema = z.object({
   studentHoursPlanned: z.number().finite().min(0).max(8_760).optional(),
   isApprenticeship: z.boolean().nullable().optional(),
   apprenticeshipValidated: z.boolean().nullable().optional(),
+  registeredWithFranceTravail: z.boolean().nullable().optional(),
   jobInShortageList: z.boolean().nullable().optional(),
   offerPublishedThreeWeeks: z.boolean().nullable().optional(),
   noValidCandidateReceived: z.boolean().nullable().optional(),
@@ -64,6 +65,18 @@ const assessmentSchema = z.object({
     && !input.permitValidUntil
   ) {
     ctx.addIssue({ code: "custom", path: ["permitValidUntil"], message: "La date de fin de validité du document est obligatoire lorsqu'un document est renseigné." });
+  }
+
+  if (
+    input.nationalityGroup === "third_country"
+    && input.location === "france"
+    && typeof input.registeredWithFranceTravail !== "boolean"
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["registeredWithFranceTravail"],
+      message: "Indiquez si la personne produit un justificatif d'inscription sur la liste des demandeurs d'emploi France Travail.",
+    });
   }
 
   if (input.permitType === "student" && typeof input.studentHoursPlanned !== "number") {
@@ -132,6 +145,7 @@ export function validateAssessmentInput(input: Partial<AssessmentInput>): Assess
     ...parsed.data,
     isApprenticeship: parsed.data.isApprenticeship ?? null,
     apprenticeshipValidated: parsed.data.apprenticeshipValidated ?? null,
+    registeredWithFranceTravail: parsed.data.registeredWithFranceTravail ?? null,
     jobInShortageList: parsed.data.jobInShortageList ?? null,
     offerPublishedThreeWeeks: parsed.data.offerPublishedThreeWeeks ?? null,
     noValidCandidateReceived: parsed.data.noValidCandidateReceived ?? null,
