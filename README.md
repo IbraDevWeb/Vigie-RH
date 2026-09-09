@@ -106,13 +106,25 @@ Il contrôle notamment :
 
 Le parcours ne déclenche pas artificiellement les formalités propres à une nouvelle embauche. Si le périmètre de l'autorisation actuelle est inconnu, la valeur reste inconnue et le résultat passe en `review_required`. Les documents provisoires restent également en revue lorsque leur fondement ou leur mention exacte ne permet pas une qualification automatique suffisamment sûre.
 
+## Parcours « Nouvelle analyse — Rompre »
+Ce parcours est réservé aux situations où l'employeur envisage une rupture **en raison d'une perte, d'un refus ou d'une incertitude sur le droit au travail**. Il ne modélise pas les autres motifs de licenciement et ne produit jamais automatiquement une décision ou une lettre de rupture.
+
+Il collecte notamment :
+- le contrat actuel et le motif à l'origine du contrôle ;
+- le document actuel, sa validité et, lorsque cela est pertinent, le périmètre de l'autorisation correspondant au contrat, à l'activité et à la zone d'emploi ;
+- la date à laquelle le droit au travail aurait cessé, si elle est établie ;
+- le statut éventuel de salarié protégé ;
+- l'existence éventuelle d'une période de travail sans droit au travail établi ;
+- pour les étudiants, le volume annuel de travail, l'apprentissage et l'autorisation éventuellement nécessaire au-delà du seuil modélisé.
+
+Le moteur sépare volontairement **le maintien au travail** de **la rupture du contrat**. Lorsqu'il établit que le droit au travail n'est plus présent dans les faits renseignés, il peut indiquer que le maintien au travail n'est pas possible dans l'état du dossier. En revanche, le résultat global reste en `review_required` afin que la procédure de rupture, les protections particulières et les sommes dues soient validées en droit social avant toute notification. Une période de travail sans autorisation déclarée déclenche également un contrôle dédié des droits prévus à l'article L. 8252-2.
+
 ## Architecture
 Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
 
 ## Ce qui est déjà prêt
 - UI SaaS responsive ;
-- parcours « Recruter », « Renouveler », « Modifier » et « Peut-il travailler ? » renforcés ;
-- socle « Rompre » ;
+- cinq parcours renforcés : « Recruter », « Renouveler », « Modifier », « Peut-il travailler ? » et « Rompre » ;
 - moteur de règles isolé du front ;
 - sources officielles versionnées ;
 - règles appliquées historisées dans le résultat (`appliedRules`) ;
@@ -135,6 +147,7 @@ Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
 - aucun OCR/LLM ne participe au verdict ;
 - le recrutement depuis l'étranger n'est pas modélisé de bout en bout (introduction, visa, séjour) et reste fail-closed ;
 - certaines sous-catégories de titres et certains régimes spéciaux nécessitent encore une branche dédiée ;
+- le parcours « Rompre » ne remplace pas l'analyse de la procédure de licenciement, du statut protecteur, du calcul des sommes dues ou des autres règles de droit social ;
 - les contrôles juridiques doivent être revus par un professionnel habilité avant usage réel.
 
 ## Étapes production recommandées
