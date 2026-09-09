@@ -1,10 +1,5 @@
 import type { LegalRule } from "../types";
 
-function earliestIsoDate(...dates: Array<string | undefined>): string | null {
-  const available = dates.filter((date): date is string => Boolean(date)).sort();
-  return available[0] ?? null;
-}
-
 export const actionRules: LegalRule[] = [
   {
     id: "hire-abroad-review",
@@ -30,26 +25,6 @@ export const actionRules: LegalRule[] = [
         label: "Qualifier le parcours d'introduction et les formalités d'entrée/séjour avant validation finale",
         status: "attention",
         sourceIds: ["sp-autorisation-travail"],
-      }],
-    }),
-  },
-  {
-    id: "hire-action",
-    version: 2,
-    description: "Cadre opérationnel du recrutement et échéance la plus proche renseignée.",
-    effectiveFrom: "2024-09-01",
-    lastReviewed: "2026-09-09",
-    sourceIds: ["ct-r5221-1", "ct-r5221-41", "ct-r5221-42"],
-    priority: 30,
-    applies: ({ input }) => input.action === "hire",
-    evaluate: ({ input }) => ({
-      patches: { nextDeadline: earliestIsoDate(input.plannedStartDate, input.permitValidUntil) },
-      checklist: [{
-        id: "hire-before-start",
-        label: "Clore les contrôles requis avant la prise de poste",
-        description: input.plannedStartDate ? `Date de prise de poste envisagée : ${input.plannedStartDate}` : undefined,
-        status: "todo",
-        sourceIds: ["ct-r5221-1", "ct-r5221-41", "ct-r5221-42"],
       }],
     }),
   },
