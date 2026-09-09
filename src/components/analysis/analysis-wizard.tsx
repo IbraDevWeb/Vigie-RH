@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { RenewalStep } from "@/components/analysis/renewal-step";
 import { ModificationStep } from "@/components/analysis/modification-step";
 import { CanWorkStep } from "@/components/analysis/can-work-step";
+import { TerminationStep } from "@/components/analysis/termination-step";
 
 const actions: Array<{ value: ActionType; label: string; description: string }> = [
   { value: "hire", label: "Recruter", description: "Sécuriser une nouvelle embauche" },
@@ -96,6 +97,10 @@ const initial: AssessmentInput = {
   currentRegion: undefined,
   currentSalaryGrossMonthly: undefined,
   workAuthorizationGrantedForModification: null,
+  terminationReason: "unknown",
+  terminationLossDate: undefined,
+  protectedEmployee: null,
+  workedWhileUnauthorized: null,
 };
 
 type AnalysisApiResponse = {
@@ -117,7 +122,9 @@ export function AnalysisWizard() {
       ? "Modification"
       : form.action === "can_work"
         ? "Situation actuelle"
-        : "Emploi";
+        : form.action === "terminate"
+          ? "Rupture"
+          : "Emploi";
   const steps = ["Action", "Personne", "Document", workflowStep, "Résultat"];
   const set = <K extends keyof AssessmentInput>(key: K, value: AssessmentInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -127,7 +134,7 @@ export function AnalysisWizard() {
     setForm((prev) => ({
       ...prev,
       action,
-      newContract: action === "hire" ? true : ["renew", "modify", "can_work"].includes(action) ? false : prev.newContract,
+      newContract: action === "hire" ? true : ["renew", "modify", "can_work", "terminate"].includes(action) ? false : prev.newContract,
       contractType: action === "hire" && prev.contractType === "none" ? "cdi" : prev.contractType,
       plannedStartDate: action === "hire" ? prev.plannedStartDate : undefined,
       registeredWithFranceTravail: action === "hire" ? prev.registeredWithFranceTravail : null,
@@ -150,6 +157,10 @@ export function AnalysisWizard() {
       currentRegion: action === "modify" ? prev.currentRegion : undefined,
       currentSalaryGrossMonthly: action === "modify" ? prev.currentSalaryGrossMonthly : undefined,
       workAuthorizationGrantedForModification: action === "modify" ? prev.workAuthorizationGrantedForModification : null,
+      terminationReason: action === "terminate" ? (prev.terminationReason ?? "unknown") : "unknown",
+      terminationLossDate: action === "terminate" ? prev.terminationLossDate : undefined,
+      protectedEmployee: action === "terminate" ? prev.protectedEmployee : null,
+      workedWhileUnauthorized: action === "terminate" ? prev.workedWhileUnauthorized : null,
     }));
   }
 
@@ -177,6 +188,8 @@ export function AnalysisWizard() {
       renewalProofAllowsWork: renewalApplicable ? prev.renewalProofAllowsWork : null,
       workAuthorizationValidUntil: nationalityGroup === "third_country" ? prev.workAuthorizationValidUntil : undefined,
       workAuthorizationRenewalFiled: nationalityGroup === "third_country" ? prev.workAuthorizationRenewalFiled : null,
+      protectedEmployee: nationalityGroup === "third_country" ? prev.protectedEmployee : null,
+      workedWhileUnauthorized: nationalityGroup === "third_country" ? prev.workedWhileUnauthorized : null,
     }));
   }
 
@@ -266,7 +279,8 @@ export function AnalysisWizard() {
         {step === 3 && form.action === "renew" && <RenewalStep form={form} set={set} />}
         {step === 3 && form.action === "modify" && <ModificationStep form={form} set={set} />}
         {step === 3 && form.action === "can_work" && <CanWorkStep form={form} set={set} />}
-        {step === 3 && !["renew", "modify", "can_work"].includes(form.action) && <EmploymentStep form={form} set={set} setFranceTravail={setFranceTravail} />}
+        {step === 3 && form.action === "terminate" && <TerminationStep form={form} set={set} />}
+        {step === 3 && !["renew", "modify", "can_work", "terminate"].includes(form.action) && <EmploymentStep form={form} set={set} setFranceTravail={setFranceTravail} />}
         {step === 4 && result && (
           <ResultView action={form.action} assessmentId={assessmentId} result={result} onRestart={restart} />
         )}
@@ -312,6 +326,7 @@ export function AnalysisWizard() {
             {form.plannedStartDate && <div><dt>Prise de poste</dt><dd>{formatDate(form.plannedStartDate)}</dd></div>}
             {form.action === "renew" && <div><dt>Justificatif</dt><dd>{renewalProofSummary(form)}</dd></div>}
             {form.action === "modify" && form.modificationEffectiveDate && <div><dt>Effet modification</dt><dd>{formatDate(form.modificationEffectiveDate)}</dd></div>}
+            {form.action === "terminate" && form.terminationLossDate && <div><dt>Perte du droit</dt><dd>{formatDate(form.terminationLossDate)}</dd></div>}
           </dl>
           <div className="mini-note">
             <Icon name="shield" />
@@ -328,7 +343,7 @@ function ActionStep({ form, onSelect }: { form: AssessmentInput; onSelect: (acti
     <section className="wizard-section">
       <p className="eyebrow">Étape 1</p>
       <h2>Que souhaitez-vous faire ?</h2>
-      <p className="muted">Les parcours « Recruter », « Renouveler », « Modifier » et « Peut-il travailler ? » disposent maintenant de questionnaires dédiés. Le parcours « Rompre » conserve son périmètre actuel.</p>
+      <p className="muted">Les cinq parcours disposent maintenant de questionnaires dédiés : recruter, renouveler, modifier, contrôler le droit au travail actuel et traiter une éventuelle rupture liée à la perte de ce droit.</p>
       <div className="choice-grid">
         {actions.map((action) => (
           <button
@@ -700,7 +715,7 @@ function ResultView({
           {assessmentId && <small>Référence d'analyse : {assessmentId}</small>}
         </div>
         <div className="work-now">
-          <small>{action === "modify" ? "Modification applicable aujourd'hui" : "Peut travailler aujourd'hui"}</small>
+          <small>{action === "modify" ? "Modification applicable aujourd'hui" : action === "terminate" ? "Maintien au travail aujourd'hui" : "Peut travailler aujourd'hui"}</small>
           <strong>{booleanAnswerLabel(result.canWorkNow)}</strong>
         </div>
       </div>
