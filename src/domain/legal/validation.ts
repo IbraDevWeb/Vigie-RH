@@ -33,6 +33,8 @@ const assessmentSchema = z.object({
   offerPublishedThreeWeeks: z.boolean().nullable().optional(),
   noValidCandidateReceived: z.boolean().nullable().optional(),
   temporaryDocumentAllowsWork: z.boolean().nullable().optional(),
+  workAuthorizationGrantedForContract: z.boolean().nullable().optional(),
+  employerVerificationCompleted: z.boolean().nullable().optional(),
 }).strict().superRefine((input, ctx) => {
   if (input.action !== "hire") return;
 
@@ -92,6 +94,25 @@ const assessmentSchema = z.object({
       message: "Indiquez si une candidature valable a été reçue après la publication de l'offre.",
     });
   }
+
+  const likelyNeedsWorkAuthorization = input.nationalityGroup === "third_country" && (
+    input.permitType === "none"
+    || (["employee", "temporary_worker"].includes(input.permitType) && input.newContract)
+    || (
+      input.permitType === "student"
+      && typeof input.studentHoursPlanned === "number"
+      && input.studentHoursPlanned > 964
+      && input.isApprenticeship !== true
+    )
+  );
+
+  if (likelyNeedsWorkAuthorization && typeof input.salaryGrossMonthly !== "number") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["salaryGrossMonthly"],
+      message: "La rémunération brute mensuelle proposée est obligatoire lorsqu'une autorisation de travail doit être instruite.",
+    });
+  }
 });
 
 export class ValidationError extends Error {
@@ -115,5 +136,7 @@ export function validateAssessmentInput(input: Partial<AssessmentInput>): Assess
     offerPublishedThreeWeeks: parsed.data.offerPublishedThreeWeeks ?? null,
     noValidCandidateReceived: parsed.data.noValidCandidateReceived ?? null,
     temporaryDocumentAllowsWork: parsed.data.temporaryDocumentAllowsWork ?? null,
+    workAuthorizationGrantedForContract: parsed.data.workAuthorizationGrantedForContract ?? null,
+    employerVerificationCompleted: parsed.data.employerVerificationCompleted ?? null,
   };
 }
