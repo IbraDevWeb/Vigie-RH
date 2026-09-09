@@ -12,7 +12,7 @@ Vigie RH transforme une situation opérationnelle (recruter, renouveler, modifie
 - TypeScript strict
 - Zod pour la validation des entrées
 - CSS natif, aucun framework UI
-- Moteur de règles pur et testable
+- moteur de règles pur et testable
 - Vitest
 
 ## Lancer le projet
@@ -22,14 +22,23 @@ npm run dev
 ```
 Puis ouvrir `http://localhost:3000`.
 
-## Vérifications locales
+## Vérifications
 ```bash
-npm run test
+npm test
 npm run typecheck
 npm run build
 ```
 
-Le dépôt ne contient pas encore de workflow GitHub Actions : ces contrôles doivent donc être exécutés localement tant qu'une CI n'a pas été ajoutée.
+La CI GitHub exécute les tests, le typecheck et un export statique avant toute publication GitHub Pages.
+
+## Déploiement GitHub Pages
+Le site public est publié sur `https://ibradevweb.github.io/Vigie-RH/` avec `.github/workflows/deploy-pages.yml`.
+
+Deux modes coexistent :
+- **serveur/local** : `/api/analyse` exécute le use-case d'application et sauvegarde l'assessment dans l'adapter mémoire de démonstration ;
+- **GitHub Pages** : les routes serveur sont retirées uniquement pendant l'export statique et `StaticPagesAnalysisBridge` exécute localement le même moteur validé par Zod. Aucun verdict juridique différent n'est implémenté dans l'UI.
+
+Cette séparation permet de conserver l'architecture cible tout en gardant une démonstration publique réellement utilisable sur un hébergement statique.
 
 ## Routes
 - `/` : landing page
@@ -39,8 +48,8 @@ Le dépôt ne contient pas encore de workflow GitHub Actions : ces contrôles do
 - `/salaries/[id]` : dossier salarié
 - `/audit` : audit entreprise
 - `/sources` : registre juridique versionné
-- `/api/analyse` : création et exécution d'un assessment juridique
-- `/api/health` : healthcheck
+- `/api/analyse` : création et exécution d'un assessment juridique en mode serveur
+- `/api/health` : healthcheck en mode serveur
 
 ## Parcours « Nouvelle analyse — Recruter »
 Le parcours de recrutement collecte de manière adaptative les faits nécessaires à l'analyse :
@@ -55,12 +64,27 @@ Le parcours de recrutement collecte de manière adaptative les faits nécessaire
 
 Les catégories génériques qui ne permettent pas une qualification sûre, notamment certains cas « vie privée et familiale », « Talent », documents temporaires ou régimes spéciaux, restent en `review_required` tant que les informations exactes ne sont pas modélisées.
 
+## Parcours « Nouvelle analyse — Renouveler »
+Le renouvellement distingue explicitement le **titre actuellement renouvelé** du **justificatif reçu pendant l'instruction**.
+
+Le parcours collecte notamment :
+- type et échéance du titre actuel ;
+- état et date du dépôt du renouvellement ;
+- attestation de dépôt, attestation de prolongation, récépissé, décision favorable, nouveau titre ou justificatif non qualifié ;
+- date de validité du justificatif lorsqu'elle est connue ;
+- mention du récépissé autorisant ou non le travail ;
+- activité étudiante et apprentissage lorsque ces données influencent le droit au travail ;
+- échéance et renouvellement de l'autorisation de travail pour les titres salarié / travailleur temporaire.
+
+Le moteur ne transforme jamais une simple preuve de dépôt en droit au travail. Les informations manquantes ou les justificatifs dont l'effet n'est pas suffisamment qualifié passent en `review_required`. La continuité de trois mois de la carte de résident est isolée dans une règle dédiée et n'est pas généralisée aux autres titres.
+
 ## Architecture
 Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
 
 ## Ce qui est déjà prêt
 - UI SaaS responsive ;
-- parcours recrutement renforcé, plus parcours renouvellement / modification / rupture / droit au travail ;
+- parcours « Recruter » et « Renouveler » renforcés ;
+- socles « Modifier », « Rompre » et « Peut-il travailler ? » ;
 - moteur de règles isolé du front ;
 - sources officielles versionnées ;
 - règles appliquées historisées dans le résultat (`appliedRules`) ;
@@ -68,14 +92,17 @@ Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
 - alertes d'expiration ;
 - portefeuille et dossier salarié ;
 - audit de conformité ;
-- API d'analyse avec identifiant d'assessment ;
+- API d'analyse avec identifiant d'assessment en mode serveur ;
 - repository d'assessment et adapter mémoire de démonstration ;
+- adapter statique GitHub Pages ;
 - tests unitaires du moteur, de la validation et du use-case de création ;
+- CI GitHub Actions ;
 - Dockerfile ;
 - schéma PostgreSQL cible dans `db/schema.sql`.
 
 ## Limites actuelles
 - l'adapter d'assessment est en mémoire : il n'est pas une persistence de production ;
+- la démo GitHub Pages n'a par nature aucune persistence serveur ;
 - PostgreSQL, authentification et RBAC ne sont pas encore branchés ;
 - aucun OCR/LLM ne participe au verdict ;
 - le recrutement depuis l'étranger n'est pas modélisé de bout en bout (introduction, visa, séjour) et reste fail-closed ;
@@ -88,7 +115,7 @@ Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
 3. Ajouter chiffrement applicatif des documents et journal d'audit.
 4. Connecter les sources officielles (Légifrance/API PISTE, jeux de données métiers en tension).
 5. Ajouter extraction documentaire (OCR/LLM) comme **outil d'extraction uniquement**, avec confirmation humaine des champs.
-6. Ajouter tests E2E, CI et monitoring.
+6. Ajouter tests E2E et monitoring.
 
 ## Modèle de données production
 Un schéma PostgreSQL de référence est fourni dans `db/schema.sql` avec multi-tenant, documents, versions de règles, assessments, tâches et audit log.
