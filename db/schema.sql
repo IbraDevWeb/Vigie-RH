@@ -92,30 +92,44 @@ create index legal_rule_active_idx on legal_rule_versions(rule_key, status, effe
 create table assessments (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id) on delete cascade,
-  employee_id uuid references employees(id) on delete set null,
+  employee_id uuid,
   action_type text not null,
   input_snapshot jsonb not null,
   result_snapshot jsonb not null,
   rule_versions jsonb not null,
   created_by uuid references users(id),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique(id, organization_id),
+  foreign key (employee_id, organization_id)
+    references employees(id, organization_id)
+    on delete set null (employee_id)
 );
 create index assessments_org_created_idx on assessments(organization_id, created_at desc);
 
 create table compliance_tasks (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id) on delete cascade,
-  employee_id uuid references employees(id) on delete cascade,
-  assessment_id uuid references assessments(id) on delete set null,
+  employee_id uuid,
+  assessment_id uuid,
   title text not null,
   due_at timestamptz,
   status text not null check (status in ('todo','doing','done','cancelled')) default 'todo',
   severity text not null check (severity in ('info','warning','critical')) default 'info',
-  assigned_to uuid references users(id),
+  assigned_to uuid,
   created_at timestamptz not null default now(),
-  completed_at timestamptz
+  completed_at timestamptz,
+  foreign key (employee_id, organization_id)
+    references employees(id, organization_id)
+    on delete cascade,
+  foreign key (assessment_id, organization_id)
+    references assessments(id, organization_id)
+    on delete set null (assessment_id),
+  foreign key (organization_id, assigned_to)
+    references organization_members(organization_id, user_id)
+    on delete set null (assigned_to)
 );
 create index compliance_tasks_due_idx on compliance_tasks(organization_id, status, due_at);
+create index compliance_tasks_employee_idx on compliance_tasks(organization_id, employee_id, status, due_at);
 
 create table audit_log (
   id bigint generated always as identity primary key,
