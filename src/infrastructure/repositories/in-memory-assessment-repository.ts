@@ -13,6 +13,13 @@ export class InMemoryAssessmentRepository implements AssessmentRepository {
     return structuredClone(record);
   }
 
+  async listByOrganization(organizationId: string): Promise<AssessmentRecord[]> {
+    return [...this.records.values()]
+      .filter((record) => record.organizationId === organizationId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((record) => structuredClone(record));
+  }
+
   async listByEmployee(employeeId: string, organizationId: string): Promise<AssessmentRecord[]> {
     return [...this.records.values()]
       .filter((record) => record.organizationId === organizationId && record.employeeId === employeeId)
