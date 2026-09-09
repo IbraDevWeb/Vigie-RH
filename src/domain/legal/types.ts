@@ -12,6 +12,14 @@ export type PermitType =
   | "receipt"
   | "extension_attestation"
   | "other";
+export type RenewalProofType =
+  | "none"
+  | "submission_attestation"
+  | "extension_attestation"
+  | "receipt"
+  | "favorable_decision_attestation"
+  | "new_permit"
+  | "other";
 export type ContractType = "cdi" | "cdd" | "none";
 export type Answer = "yes" | "no" | "review" | "not_applicable";
 export type Severity = "success" | "info" | "warning" | "danger";
@@ -50,6 +58,13 @@ export interface AssessmentInput {
   temporaryDocumentAllowsWork?: boolean | null;
   workAuthorizationGrantedForContract?: boolean | null;
   employerVerificationCompleted?: boolean | null;
+  renewalFiled?: boolean | null;
+  renewalFiledAt?: string;
+  renewalProofType?: RenewalProofType;
+  renewalProofValidUntil?: string;
+  renewalProofAllowsWork?: boolean | null;
+  workAuthorizationValidUntil?: string;
+  workAuthorizationRenewalFiled?: boolean | null;
 }
 
 export interface Finding {
