@@ -3,7 +3,12 @@
 ## POST `/api/analyse`
 Crée un assessment, valide les entrées avec Zod, exécute le moteur juridique déterministe puis sauvegarde le snapshot via le repository d'assessment configuré.
 
-Dans le prototype actuel, ce repository est un adapter mémoire. La persistence PostgreSQL cible n'est pas encore branchée.
+En mode serveur :
+- le use-case exige un `ActorContext` autorisé à créer un assessment ;
+- `organizationId` et `createdByUserId` sont enregistrés avec le snapshot ;
+- PostgreSQL est utilisé lorsque `DATABASE_URL` est défini ;
+- le fallback mémoire n'est autorisé qu'en développement ;
+- en production serveur, l'absence de base ou de fournisseur d'identité provoque une erreur de configuration au lieu d'un fallback silencieux.
 
 > GitHub Pages ne peut pas exécuter cette route POST. Sur la démo statique, `StaticPagesAnalysisBridge` intercepte uniquement cet appel et exécute localement `assessForeignWorkerCase`, c'est-à-dire la même validation et le même moteur. La réponse garde la même forme `{ assessmentId, result }`, mais elle n'est pas persistée côté serveur.
 
@@ -110,8 +115,8 @@ Sur GitHub Pages, la réponse de l'adapter statique utilise le même payload mai
 
 `appliedRules` contient pour chaque règle appliquée son identifiant stable, sa version, sa date d'effet, sa date de dernière revue et ses sources. Il sert à la traçabilité de l'assessment.
 
-### Erreur `400`
-Une entrée structurellement invalide ou incomplète pour un champ obligatoire renvoie :
+### Erreurs
+Une entrée structurellement invalide renvoie `400` :
 ```json
 {
   "error": "Entrée invalide",
@@ -119,7 +124,22 @@ Une entrée structurellement invalide ou incomplète pour un champ obligatoire r
 }
 ```
 
+Une permission insuffisante renvoie `403`. Une configuration serveur incomplète (identité ou persistence de production absente) renvoie `503`.
+
 Une incertitude juridiquement pertinente ne doit pas être transformée artificiellement en erreur `400` lorsqu'elle peut être représentée par une valeur `null` et traitée fail-closed par le moteur.
+
+## GET `/api/assessments/{id}`
+Retourne un assessment persisté uniquement si l'acteur possède `assessment:read` **et** appartient à l'organisation du record.
+
+Le repository reçoit explicitement `organizationId` pour la lecture et l'adapter PostgreSQL exécute la requête sous le contexte RLS de cette organisation. Un identifiant appartenant à une autre organisation est donc traité comme introuvable.
+
+Réponses principales :
+- `200` : record trouvé ;
+- `403` : rôle non autorisé ;
+- `404` : record absent ou hors organisation ;
+- `503` : identité/persistence serveur non configurée.
+
+Cette route n'existe pas dans l'artefact GitHub Pages statique.
 
 ## GET `/api/health`
 Retourne l'état du service et le timestamp serveur courant. Cette route n'existe pas dans l'artefact GitHub Pages statique.
