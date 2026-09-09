@@ -104,7 +104,7 @@ const assessmentSchema = z.object({
     ctx.addIssue({
       code: "custom",
       path: ["noValidCandidateReceived"],
-      message: "Indiquez si une candidature valable a été reçue après la publication de l'offre.",
+      message: "Indiquez si aucune candidature valable n'a été reçue après la publication de l'offre.",
     });
   }
 
@@ -119,7 +119,11 @@ const assessmentSchema = z.object({
     )
   );
 
-  if (likelyNeedsWorkAuthorization && typeof input.salaryGrossMonthly !== "number") {
+  if (
+    likelyNeedsWorkAuthorization
+    && input.workAuthorizationGrantedForContract !== true
+    && typeof input.salaryGrossMonthly !== "number"
+  ) {
     ctx.addIssue({
       code: "custom",
       path: ["salaryGrossMonthly"],
