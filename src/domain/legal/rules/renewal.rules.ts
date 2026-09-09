@@ -10,14 +10,16 @@ function isExpired(dateIso: string, today: Date): boolean {
 
 function addCalendarMonths(dateIso: string, months: number): Date {
   const date = dateAtNoon(dateIso);
+  const day = date.getDate();
+  date.setDate(1);
   date.setMonth(date.getMonth() + months);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0, 12).getDate();
+  date.setDate(Math.min(day, lastDay));
   return date;
 }
 
 function subtractCalendarMonths(dateIso: string, months: number): Date {
-  const date = dateAtNoon(dateIso);
-  date.setMonth(date.getMonth() - months);
-  return date;
+  return addCalendarMonths(dateIso, -months);
 }
 
 function filedNoLaterThanCurrentExpiry(input: AssessmentInput): boolean {
@@ -25,7 +27,12 @@ function filedNoLaterThanCurrentExpiry(input: AssessmentInput): boolean {
   return dateAtNoon(input.renewalFiledAt).getTime() <= dateAtNoon(input.permitValidUntil).getTime();
 }
 
+function hasQualifiedRenewalProof(input: AssessmentInput): boolean {
+  return Boolean(input.renewalProofType) && input.renewalProofType !== "none";
+}
+
 function residentThreeMonthContinuationApplies(input: AssessmentInput, today: Date): boolean {
+  const continuationIsNeeded = !hasQualifiedRenewalProof(input) || input.renewalProofType === "submission_attestation";
   if (
     input.action !== "renew"
     || input.nationalityGroup !== "third_country"
@@ -33,6 +40,7 @@ function residentThreeMonthContinuationApplies(input: AssessmentInput, today: Da
     || input.renewalFiled !== true
     || !input.permitValidUntil
     || !filedNoLaterThanCurrentExpiry(input)
+    || !continuationIsNeeded
   ) return false;
 
   const expiry = dateAtNoon(input.permitValidUntil);
@@ -72,8 +80,8 @@ export function hasResidentRenewalContinuation(input: AssessmentInput, today: Da
 export const renewalRules: LegalRule[] = [
   {
     id: "renewal-resident-three-month-continuation",
-    version: 1,
-    description: "Carte de résident : maintien du séjour et du droit au travail pendant trois mois après expiration lorsque le renouvellement a été demandé à temps.",
+    version: 2,
+    description: "Carte de résident : maintien du séjour et du droit au travail pendant trois mois après expiration lorsque le renouvellement a été demandé à temps et qu'aucun justificatif plus spécifique ne gouverne déjà la situation.",
     effectiveFrom: "2021-05-01",
     lastReviewed: "2026-09-09",
     sourceIds: ["ceseda-l433-3", "sp-autorisation-travail"],
@@ -132,14 +140,15 @@ export const renewalRules: LegalRule[] = [
   },
   {
     id: "renewal-filing-unknown",
-    version: 1,
-    description: "L'état du dépôt du renouvellement doit rester explicitement inconnu s'il n'est pas établi.",
+    version: 2,
+    description: "L'état du dépôt du renouvellement doit rester explicitement inconnu s'il n'est pas établi et qu'aucun justificatif de renouvellement n'est fourni.",
     effectiveFrom: "2021-05-01",
     lastReviewed: "2026-09-09",
     sourceIds: ["ceseda-r431-15-1", "sp-autorisation-travail"],
     priority: 125,
     applies: ({ input }) => input.action === "renew"
       && input.nationalityGroup === "third_country"
+      && !hasQualifiedRenewalProof(input)
       && input.renewalFiled === null,
     evaluate: () => ({
       forceStatus: "review_required",
@@ -161,14 +170,15 @@ export const renewalRules: LegalRule[] = [
   },
   {
     id: "renewal-not-filed",
-    version: 1,
-    description: "Renouvellement non déposé : action à engager avant l'échéance du titre.",
+    version: 2,
+    description: "Renouvellement non déposé et sans justificatif : action à engager avant l'échéance du titre.",
     effectiveFrom: "2021-05-01",
     lastReviewed: "2026-09-09",
     sourceIds: ["ceseda-r431-15-1", "sp-autorisation-travail"],
     priority: 120,
     applies: ({ input }) => input.action === "renew"
       && input.nationalityGroup === "third_country"
+      && !hasQualifiedRenewalProof(input)
       && input.renewalFiled === false,
     evaluate: () => ({
       forceStatus: "conditional",
@@ -189,7 +199,7 @@ export const renewalRules: LegalRule[] = [
   },
   {
     id: "renewal-submission-attestation",
-    version: 1,
+    version: 2,
     description: "L'attestation de dépôt en ligne n'établit pas à elle seule la régularité du séjour ni un droit au travail après expiration.",
     effectiveFrom: "2021-05-01",
     lastReviewed: "2026-09-09",
@@ -201,9 +211,9 @@ export const renewalRules: LegalRule[] = [
       && Boolean(input.permitValidUntil)
       && isExpired(input.permitValidUntil!, today)
       && !residentThreeMonthContinuationApplies(input, today),
-    evaluate: () => ({
+    evaluate: ({ input }) => ({
       forceStatus: "blocked",
-      patches: { canWorkNow: false, confidence: "high" },
+      patches: { canWorkNow: false, workAuthorization: workAuthorizationAnswer(input), confidence: "high" },
       findings: [{
         id: "submission-attestation-no-work",
         title: "Attestation de dépôt insuffisante après expiration",
