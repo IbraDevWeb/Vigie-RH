@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getForeignWorkerAssessment } from "@/application/get-foreign-worker-assessment";
 import { AuthorizationError } from "@/application/authorization";
-import { getAssessmentRepository, PersistenceConfigurationError } from "@/infrastructure/repositories/assessment-repository-provider";
+import { getAssessmentRepository } from "@/infrastructure/repositories/assessment-repository-provider";
+import { PersistenceConfigurationError } from "@/infrastructure/repositories/persistence-configuration-error";
 import { AuthenticationConfigurationError, resolveServerActor } from "@/infrastructure/security/request-actor";
 
 export async function GET(
