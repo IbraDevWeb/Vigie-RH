@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-09 — Persistence PostgreSQL & RBAC
+
+- ajout d'un contexte applicatif `userId` / `organizationId` / rôle pour les opérations serveur ;
+- RBAC `owner`, `hr`, `advisor`, `readonly` avec contrôle de `assessment:create` et `assessment:read` dans la couche application ;
+- assessments désormais tenant-scoped et historisant l'utilisateur créateur ;
+- ajout de `PostgresAssessmentRepository` avec requêtes paramétrées et contexte d'organisation transactionnel ;
+- fallback mémoire conservé uniquement en développement et refusé en production serveur ;
+- ajout de policies PostgreSQL Row-Level Security pour les tables tenant-scoped ;
+- ajout d'un seed local de développement et des variables `.env.example` associées ;
+- ajout de `GET /api/assessments/{id}` avec lecture RBAC et isolation par organisation ;
+- aucune authentification de production fictive : l'API échoue explicitement tant qu'un véritable fournisseur d'identité n'est pas raccordé ;
+- compatibilité maintenue avec l'export statique GitHub Pages.
+
 ## 2026-09-09 — Parcours « Rompre »
 
 - ajout d'un questionnaire dédié aux situations où une rupture est envisagée à la suite d'une perte ou d'une incertitude sur le droit au travail ;
