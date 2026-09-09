@@ -59,7 +59,7 @@ export const legalSources: Record<string, LegalSource> = {
     id: "ct-r5221-43",
     title: "Code du travail — article R. 5221-43",
     authority: "legifrance",
-    url: "https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006072050/LEGISCTA000018495178/",
+    url: "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000043320787/",
     effectiveFrom: "2021-04-01",
     lastReviewed: "2026-09-09",
     note: "Exception aux vérifications R. 5221-41 et R. 5221-42 lorsque l'étranger produit notamment un justificatif d'inscription sur la liste des demandeurs d'emploi.",
