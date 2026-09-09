@@ -1,4 +1,5 @@
-import type { Pool, PoolClient } from "pg";
+import type { Pool } from "pg";
+import { withPostgresTenant } from "@/infrastructure/database/tenant-transaction";
 import type { AssessmentRecord, AssessmentRepository } from "./assessment-repository";
 
 interface AssessmentRow {
@@ -15,7 +16,7 @@ export class PostgresAssessmentRepository implements AssessmentRepository {
   constructor(private readonly pool: Pool) {}
 
   async save(record: AssessmentRecord): Promise<void> {
-    await this.withTenant(record.organizationId, async (client) => {
+    await withPostgresTenant(this.pool, record.organizationId, async (client) => {
       await client.query(
         `insert into assessments (
           id,
@@ -42,7 +43,7 @@ export class PostgresAssessmentRepository implements AssessmentRepository {
   }
 
   async findById(id: string, organizationId: string): Promise<AssessmentRecord | null> {
-    return this.withTenant(organizationId, async (client) => {
+    return withPostgresTenant(this.pool, organizationId, async (client) => {
       const query = await client.query<AssessmentRow>(
         `select id, organization_id, created_by, input_snapshot, result_snapshot, rule_versions, created_at
          from assessments
@@ -64,24 +65,5 @@ export class PostgresAssessmentRepository implements AssessmentRepository {
         createdAt: new Date(row.created_at).toISOString(),
       };
     });
-  }
-
-  private async withTenant<T>(
-    organizationId: string,
-    operation: (client: PoolClient) => Promise<T>,
-  ): Promise<T> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("begin");
-      await client.query("select set_config('vigie.organization_id', $1, true)", [organizationId]);
-      const result = await operation(client);
-      await client.query("commit");
-      return result;
-    } catch (error) {
-      await client.query("rollback");
-      throw error;
-    } finally {
-      client.release();
-    }
   }
 }
