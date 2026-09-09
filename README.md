@@ -11,6 +11,7 @@ Vigie RH transforme une situation opérationnelle (recruter, renouveler, modifie
 - React 19.2.7
 - TypeScript strict
 - Zod pour la validation des entrées
+- PostgreSQL via `pg` en mode serveur
 - CSS natif, aucun framework UI
 - moteur de règles pur et testable
 - Vitest
@@ -35,8 +36,8 @@ La CI GitHub exécute les tests, le typecheck et un export statique avant toute 
 Le site public est publié sur `https://ibradevweb.github.io/Vigie-RH/` avec `.github/workflows/deploy-pages.yml`. Chaque push sur `main` déclenche la validation et, si elle réussit, la publication de la nouvelle version.
 
 Deux modes coexistent :
-- **serveur/local** : `/api/analyse` exécute le use-case d'application et sauvegarde l'assessment dans l'adapter mémoire de démonstration ;
-- **GitHub Pages** : les routes serveur sont retirées uniquement pendant l'export statique et `StaticPagesAnalysisBridge` exécute localement le même moteur validé par Zod. Aucun verdict juridique différent n'est implémenté dans l'UI.
+- **serveur/local** : `/api/analyse` exécute le use-case d'application ; si `DATABASE_URL` est défini, l'assessment est persisté dans PostgreSQL, sinon l'adapter mémoire n'est autorisé qu'en développement ;
+- **GitHub Pages** : les routes serveur sont retirées uniquement pendant l'export statique et `StaticPagesAnalysisBridge` exécute localement le même moteur validé par Zod. Aucun verdict juridique différent n'est implémenté dans l'UI et aucun secret PostgreSQL n'est envoyé au navigateur.
 
 Cette séparation permet de conserver l'architecture cible tout en gardant une démonstration publique réellement utilisable sur un hébergement statique.
 
@@ -49,6 +50,7 @@ Cette séparation permet de conserver l'architecture cible tout en gardant une d
 - `/audit` : audit entreprise
 - `/sources` : registre juridique versionné
 - `/api/analyse` : création et exécution d'un assessment juridique en mode serveur
+- `/api/assessments/[id]` : lecture tenant-scoped d'un assessment persisté en mode serveur
 - `/api/health` : healthcheck en mode serveur
 
 ## Parcours « Nouvelle analyse — Recruter »
@@ -119,8 +121,22 @@ Il collecte notamment :
 
 Le moteur sépare volontairement **le maintien au travail** de **la rupture du contrat**. Lorsqu'il établit que le droit au travail n'est plus présent dans les faits renseignés, il peut indiquer que le maintien au travail n'est pas possible dans l'état du dossier. En revanche, le résultat global reste en `review_required` afin que la procédure de rupture, les protections particulières et les sommes dues soient validées en droit social avant toute notification. Une période de travail sans autorisation déclarée déclenche également un contrôle dédié des droits prévus à l'article L. 8252-2.
 
+## Persistence et RBAC
+La première tranche multi-tenant est branchée côté serveur :
+- `ActorContext` avec utilisateur, organisation et rôle ;
+- rôles `owner`, `hr`, `advisor`, `readonly` ;
+- permissions appliquées dans la couche application ;
+- `PostgresAssessmentRepository` avec snapshots juridiques et versions des règles ;
+- lectures filtrées par organisation ;
+- policies Row-Level Security dans `db/rls.sql` ;
+- fallback mémoire uniquement en développement.
+
+Aucun faux login de production n'est activé. Tant qu'un véritable fournisseur d'identité/session n'est pas raccordé, le mode serveur de production refuse de créer un utilisateur implicite.
+
+Voir `docs/PERSISTENCE-RBAC.md` pour le détail et l'initialisation locale.
+
 ## Architecture
-Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
+Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md`, `docs/API.md` et `docs/PERSISTENCE-RBAC.md`.
 
 ## Ce qui est déjà prêt
 - UI SaaS responsive ;
@@ -133,17 +149,20 @@ Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
 - portefeuille et dossier salarié ;
 - audit de conformité ;
 - API d'analyse avec identifiant d'assessment en mode serveur ;
-- repository d'assessment et adapter mémoire de démonstration ;
+- persistence PostgreSQL des assessments ;
+- fondation RBAC et isolation tenant ;
+- policies RLS pour les tables tenant-scoped ;
+- adapter mémoire limité au développement ;
 - adapter statique GitHub Pages ;
-- tests unitaires du moteur, de la validation et du use-case de création ;
+- tests unitaires du moteur, de la validation et des use-cases d'assessment ;
 - CI GitHub Actions ;
 - Dockerfile ;
 - schéma PostgreSQL cible dans `db/schema.sql`.
 
 ## Limites actuelles
-- l'adapter d'assessment est en mémoire : il n'est pas une persistence de production ;
 - la démo GitHub Pages n'a par nature aucune persistence serveur ;
-- PostgreSQL, authentification et RBAC ne sont pas encore branchés ;
+- le fournisseur d'identité/session de production n'est pas encore raccordé ;
+- les repositories PostgreSQL des salariés, documents, tâches et audit log restent à brancher ;
 - aucun OCR/LLM ne participe au verdict ;
 - le recrutement depuis l'étranger n'est pas modélisé de bout en bout (introduction, visa, séjour) et reste fail-closed ;
 - certaines sous-catégories de titres et certains régimes spéciaux nécessitent encore une branche dédiée ;
@@ -152,11 +171,12 @@ Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
 
 ## Étapes production recommandées
 1. Faire auditer chaque règle du moteur par un avocat/juriste habilité.
-2. Brancher PostgreSQL + authentification + RBAC.
-3. Ajouter chiffrement applicatif des documents et journal d'audit.
-4. Connecter les sources officielles (Légifrance/API PISTE, jeux de données métiers en tension).
-5. Ajouter extraction documentaire (OCR/LLM) comme **outil d'extraction uniquement**, avec confirmation humaine des champs.
-6. Ajouter tests E2E et monitoring.
+2. Raccorder un véritable fournisseur d'identité/session et résoudre les memberships d'organisation côté serveur.
+3. Étendre PostgreSQL aux salariés, documents, tâches et audit log append-only.
+4. Ajouter chiffrement applicatif des documents et stockage objet sécurisé.
+5. Connecter les sources officielles (Légifrance/API PISTE, jeux de données métiers en tension).
+6. Ajouter extraction documentaire (OCR/LLM) comme **outil d'extraction uniquement**, avec confirmation humaine des champs.
+7. Ajouter tests E2E et monitoring.
 
 ## Modèle de données production
-Un schéma PostgreSQL de référence est fourni dans `db/schema.sql` avec multi-tenant, documents, versions de règles, assessments, tâches et audit log.
+Un schéma PostgreSQL de référence est fourni dans `db/schema.sql` avec multi-tenant, documents, versions de règles, assessments, tâches et audit log. Les policies tenant sont fournies séparément dans `db/rls.sql`.
