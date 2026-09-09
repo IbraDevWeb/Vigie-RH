@@ -28,6 +28,15 @@ export const legalSources: Record<string, LegalSource> = {
     lastReviewed: "2026-09-09",
     note: "Critères de délivrance : emploi proposé, situation de l'employeur, profession réglementée, rémunération et cas particuliers.",
   },
+  "ct-r5221-27": {
+    id: "ct-r5221-27",
+    title: "Code du travail — article R. 5221-27",
+    authority: "legifrance",
+    url: "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000043320735/",
+    effectiveFrom: "2021-04-01",
+    lastReviewed: "2026-09-09",
+    note: "Déclaration nominative préalable de l'embauche d'un étudiant étranger, au moins deux jours ouvrables avant la date d'effet.",
+  },
   "ct-r5221-41": {
     id: "ct-r5221-41",
     title: "Code du travail — article R. 5221-41",
