@@ -1,4 +1,5 @@
 import type { LegalRule } from "../types";
+import { hasResidentRenewalContinuation } from "./renewal.rules";
 
 function daysUntil(dateIso: string, today: Date): number {
   const target = new Date(`${dateIso}T12:00:00`);
@@ -9,25 +10,31 @@ function hasForeignPermitContext(nationalityGroup: string, permitType: string): 
   return !["france", "eu_eea_swiss"].includes(nationalityGroup) && permitType !== "none";
 }
 
+function renewalEvidenceHasDedicatedRule(action: string, proofType?: string): boolean {
+  return action === "renew" && Boolean(proofType) && proofType !== "none";
+}
+
 export const permitRules: LegalRule[] = [
   {
     id: "expired-permit",
-    version: 2,
-    description: "Un document expiré empêche d'établir un droit au travail à partir de ce document.",
+    version: 3,
+    description: "Un document expiré empêche d'établir un droit au travail à partir de ce document, sauf continuité ou justificatif de renouvellement traité par une règle dédiée.",
     effectiveFrom: "2024-09-01",
     lastReviewed: "2026-09-09",
     sourceIds: ["sp-autorisation-travail", "sp-sanctions"],
     priority: 220,
     applies: ({ input, today }) => Boolean(input.permitValidUntil)
       && hasForeignPermitContext(input.nationalityGroup, input.permitType)
-      && daysUntil(input.permitValidUntil!, today) < 0,
+      && daysUntil(input.permitValidUntil!, today) < 0
+      && !renewalEvidenceHasDedicatedRule(input.action, input.renewalProofType)
+      && !hasResidentRenewalContinuation(input, today),
     evaluate: ({ input }) => ({
       forceStatus: input.action === "hire" ? "conditional" : "blocked",
       patches: { canWorkNow: false, confidence: "high" },
       findings: [{
         id: "expired",
         title: "Document expiré : droit au travail non établi",
-        detail: "Le document renseigné est expiré. Le moteur ne lui attribue aucun droit au travail après sa date de validité ; un éventuel nouveau document provisoire doit être analysé comme document distinct.",
+        detail: "Le document renseigné est expiré. Le moteur ne lui attribue aucun droit au travail après sa date de validité ; un éventuel justificatif de renouvellement doit être analysé comme document distinct.",
         severity: "danger",
         sourceIds: ["sp-autorisation-travail", "sp-sanctions"],
       }],
@@ -63,14 +70,14 @@ export const permitRules: LegalRule[] = [
           title: `Titre à échéance dans ${days} jour${days > 1 ? "s" : ""}`,
           detail: "Anticipez le renouvellement et demandez les justificatifs de dépôt suffisamment tôt pour éviter une rupture de droit au travail.",
           severity,
-          sourceIds: ["sp-autorisation-travail"],
+          sourceIds: ["sp-autorisation-travail"]
         }],
         checklist: [{
           id: "renewal-followup",
           label: "Planifier le suivi du renouvellement",
           description: `Échéance déclarée : ${input.permitValidUntil}`,
           status: days <= 30 ? "attention" : "todo",
-          sourceIds: ["sp-autorisation-travail"],
+          sourceIds: ["sp-autorisation-travail"]
         }],
       };
     },
@@ -95,7 +102,7 @@ export const permitRules: LegalRule[] = [
             title: "Document temporaire déclaré comme autorisant le travail",
             detail: "Le document est déclaré comme portant une mention autorisant le travail. La mention exacte, le fondement et la validité doivent être contrôlés avant de conclure.",
             severity: "warning",
-            sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
+            sourceIds: ["ct-r5221-2", "sp-autorisation-travail"]
           }],
         };
       }
@@ -109,7 +116,7 @@ export const permitRules: LegalRule[] = [
             title: "Document temporaire déclaré sans droit au travail",
             detail: "Le document renseigné ne permet pas d'établir un droit au travail pour la situation déclarée.",
             severity: "danger",
-            sourceIds: ["sp-autorisation-travail"],
+            sourceIds: ["sp-autorisation-travail"]
           }],
         };
       }
@@ -122,7 +129,7 @@ export const permitRules: LegalRule[] = [
           title: "Mention du document temporaire à contrôler",
           detail: "Le droit au travail dépend du contenu exact du récépissé ou de l'attestation. Le moteur ne conclut pas sans cette information.",
           severity: "warning",
-          sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
+          sourceIds: ["ct-r5221-2", "sp-autorisation-travail"]
         }],
       };
     },
