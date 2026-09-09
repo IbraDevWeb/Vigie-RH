@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main
-      - fix/github-pages
+      - "feature/**"
+      - "fix/**"
   workflow_dispatch:
 
 permissions:
@@ -13,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: github-pages
+  group: github-pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -39,6 +40,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Prepare static export
+        run: rm -rf src/app/api
 
       - name: Build static site
         run: npm run build
