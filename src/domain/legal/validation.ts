@@ -62,6 +62,16 @@ const assessmentSchema = z.object({
   currentRegion: z.string().trim().min(1).optional(),
   currentSalaryGrossMonthly: z.number().finite().positive().optional(),
   workAuthorizationGrantedForModification: z.boolean().nullable().optional(),
+  terminationReason: z.enum([
+    "document_expired",
+    "authorization_refused_or_withdrawn",
+    "activity_not_covered",
+    "other",
+    "unknown",
+  ]).optional(),
+  terminationLossDate: dateSchema.optional(),
+  protectedEmployee: z.boolean().nullable().optional(),
+  workedWhileUnauthorized: z.boolean().nullable().optional(),
 }).strict().superRefine((input, ctx) => {
   if (input.action === "hire") {
     if (!input.newContract) {
@@ -226,6 +236,85 @@ const assessmentSchema = z.object({
     }
   }
 
+  if (input.action === "terminate") {
+    if (input.newContract) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["newContract"],
+        message: "Le parcours « Rompre » analyse le contrat actuel et ne doit pas être renseigné comme un nouveau contrat.",
+      });
+    }
+
+    if (input.contractType === "none") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["contractType"],
+        message: "Le type du contrat actuel est obligatoire pour préparer une analyse de rupture.",
+      });
+    }
+
+    if (!input.terminationReason) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["terminationReason"],
+        message: "Le motif à l'origine du parcours de rupture doit être renseigné, même s'il reste à qualifier.",
+      });
+    }
+
+    if (
+      ["third_country", "algeria"].includes(input.nationalityGroup)
+      && input.permitType !== "none"
+      && !input.permitValidUntil
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["permitValidUntil"],
+        message: "La date de fin de validité du document actuel est obligatoire pour analyser une éventuelle perte du droit au travail.",
+      });
+    }
+
+    if (input.nationalityGroup === "third_country" && typeof input.protectedEmployee !== "boolean") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["protectedEmployee"],
+        message: "Indiquez si le salarié bénéficie d'un statut de salarié protégé avant de poursuivre l'analyse de rupture.",
+      });
+    }
+
+    if (input.permitType === "student" && typeof input.studentHoursPlanned !== "number") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["studentHoursPlanned"],
+        message: "Le volume annuel de travail actuel est obligatoire pour contrôler un titre étudiant avant rupture.",
+      });
+    }
+
+    if (
+      input.permitType === "student"
+      && typeof input.studentHoursPlanned === "number"
+      && input.studentHoursPlanned > 964
+      && typeof input.isApprenticeship !== "boolean"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["isApprenticeship"],
+        message: "Indiquez si l'activité au-delà de 964 heures relève d'un contrat d'apprentissage.",
+      });
+    }
+
+    if (
+      input.permitType === "student"
+      && input.isApprenticeship === true
+      && typeof input.apprenticeshipValidated !== "boolean"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["apprenticeshipValidated"],
+        message: "Indiquez si le contrat d'apprentissage a été validé par le service compétent.",
+      });
+    }
+  }
+
   if (input.action === "modify") {
     if (!input.modificationEffectiveDate) {
       ctx.addIssue({
@@ -360,5 +449,7 @@ export function validateAssessmentInput(input: Partial<AssessmentInput>): Assess
     salaryChanged: parsed.data.salaryChanged ?? null,
     workingTimeChanged: parsed.data.workingTimeChanged ?? null,
     workAuthorizationGrantedForModification: parsed.data.workAuthorizationGrantedForModification ?? null,
+    protectedEmployee: parsed.data.protectedEmployee ?? null,
+    workedWhileUnauthorized: parsed.data.workedWhileUnauthorized ?? null,
   };
 }
