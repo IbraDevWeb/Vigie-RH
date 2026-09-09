@@ -5,18 +5,22 @@ function daysUntil(dateIso: string, today: Date): number {
   return Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
 }
 
+function hasForeignPermitContext(nationalityGroup: string, permitType: string): boolean {
+  return !["france", "eu_eea_swiss"].includes(nationalityGroup) && permitType !== "none";
+}
+
 export const permitRules: LegalRule[] = [
   {
     id: "expired-permit",
-    version: 1,
+    version: 2,
     description: "Un document expiré empêche d'établir un droit au travail à partir de ce document.",
     effectiveFrom: "2024-09-01",
     lastReviewed: "2026-09-09",
     sourceIds: ["sp-autorisation-travail", "sp-sanctions"],
     priority: 220,
     applies: ({ input, today }) => Boolean(input.permitValidUntil)
-      && daysUntil(input.permitValidUntil!, today) < 0
-      && !["france", "eu_eea_swiss"].includes(input.nationalityGroup),
+      && hasForeignPermitContext(input.nationalityGroup, input.permitType)
+      && daysUntil(input.permitValidUntil!, today) < 0,
     evaluate: ({ input }) => ({
       forceStatus: input.action === "hire" ? "conditional" : "blocked",
       patches: { canWorkNow: false, confidence: "high" },
@@ -39,13 +43,14 @@ export const permitRules: LegalRule[] = [
   },
   {
     id: "expiry-alert",
-    version: 1,
-    description: "Alerte avant expiration du document renseigné.",
+    version: 2,
+    description: "Alerte avant expiration du document étranger renseigné.",
     effectiveFrom: "2024-09-01",
     lastReviewed: "2026-09-09",
     sourceIds: ["sp-autorisation-travail"],
     priority: 20,
     applies: ({ input, today }) => Boolean(input.permitValidUntil)
+      && hasForeignPermitContext(input.nationalityGroup, input.permitType)
       && daysUntil(input.permitValidUntil!, today) >= 0
       && daysUntil(input.permitValidUntil!, today) <= 120,
     evaluate: ({ input, today }) => {
@@ -72,13 +77,14 @@ export const permitRules: LegalRule[] = [
   },
   {
     id: "temporary-document",
-    version: 1,
+    version: 2,
     description: "Traitement prudent des documents provisoires selon leur mention exacte de droit au travail.",
     effectiveFrom: "2026-04-26",
     lastReviewed: "2026-09-09",
     sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
     priority: 180,
-    applies: ({ input }) => ["receipt", "extension_attestation"].includes(input.permitType),
+    applies: ({ input }) => !["france", "eu_eea_swiss"].includes(input.nationalityGroup)
+      && ["receipt", "extension_attestation"].includes(input.permitType),
     evaluate: ({ input }) => {
       if (input.temporaryDocumentAllowsWork === true) {
         return {
