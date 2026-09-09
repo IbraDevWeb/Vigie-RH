@@ -20,6 +20,12 @@ export type RenewalProofType =
   | "favorable_decision_attestation"
   | "new_permit"
   | "other";
+export type TerminationReason =
+  | "document_expired"
+  | "authorization_refused_or_withdrawn"
+  | "activity_not_covered"
+  | "other"
+  | "unknown";
 export type ContractType = "cdi" | "cdd" | "none";
 export type Answer = "yes" | "no" | "review" | "not_applicable";
 export type Severity = "success" | "info" | "warning" | "danger";
@@ -75,6 +81,10 @@ export interface AssessmentInput {
   currentRegion?: string;
   currentSalaryGrossMonthly?: number;
   workAuthorizationGrantedForModification?: boolean | null;
+  terminationReason?: TerminationReason;
+  terminationLossDate?: string;
+  protectedEmployee?: boolean | null;
+  workedWhileUnauthorized?: boolean | null;
 }
 
 export interface Finding {
