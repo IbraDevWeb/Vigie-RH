@@ -139,13 +139,13 @@ export const baseRules: LegalRule[] = [
       findings: [{
         id: "talent-review",
         title: "Sous-catégorie Talent à préciser",
-        detail: "L'article R. 5221-2 dispense certaines catégories Talent précisément énumérées. Le formulaire actuel ne collecte pas encore le fondement exact : aucune dispense automatique n'est donc produite.",
+        detail: "Le formulaire actuel ne collecte pas le fondement exact et le périmètre d'activité du titre Talent. Le moteur ne conclut donc pas automatiquement sur la compatibilité du poste envisagé.",
         severity: "warning",
         sourceIds: ["ct-r5221-2"],
       }],
       checklist: [{
         id: "talent-basis",
-        label: "Identifier la sous-catégorie Talent et son fondement juridique",
+        label: "Identifier la sous-catégorie Talent et vérifier que l'activité envisagée correspond au titre",
         status: "attention",
         sourceIds: ["ct-r5221-2"],
       }],
@@ -173,28 +173,30 @@ export const baseRules: LegalRule[] = [
   },
   {
     id: "hire-prefecture-verification",
-    version: 1,
+    version: 2,
     description: "Avant l'embauche en France, l'employeur vérifie la régularité du séjour auprès du préfet.",
     effectiveFrom: "2021-04-01",
     lastReviewed: "2026-09-09",
-    sourceIds: ["ct-r5221-41", "sp-autorisation-travail"],
+    sourceIds: ["ct-r5221-41", "ct-r5221-42", "sp-autorisation-travail"],
     priority: 140,
     applies: ({ input }) => input.action === "hire" && input.nationalityGroup === "third_country" && input.location === "france",
-    evaluate: () => ({
+    evaluate: ({ input }) => ({
       patches: { employerVerification: "yes" },
       findings: [{
         id: "prefecture-verification",
-        title: "Vérification préfectorale à prévoir",
-        detail: "Avant l'embauche en France, l'employeur doit vérifier la régularité du séjour selon la procédure applicable. Le contrôle doit être anticipé avant la date effective d'embauche.",
-        severity: "info",
-        sourceIds: ["ct-r5221-41", "sp-autorisation-travail"],
+        title: input.employerVerificationCompleted === true ? "Vérification préfectorale déclarée accomplie" : "Vérification préfectorale à accomplir",
+        detail: input.employerVerificationCompleted === true
+          ? "La vérification préalable est déclarée comme accomplie. Conservez la preuve de la saisine et de la réponse, ou de l'expiration du délai applicable."
+          : "L'employeur doit effectuer la vérification préalable selon la procédure applicable. L'article R. 5221-42 prévoit une saisine au moins deux jours ouvrables avant la date d'effet de l'embauche.",
+        severity: input.employerVerificationCompleted === true ? "success" : "info",
+        sourceIds: ["ct-r5221-41", "ct-r5221-42", "sp-autorisation-travail"],
       }],
       checklist: [{
         id: "verify-prefecture",
         label: "Effectuer la vérification préfectorale avant l'embauche",
-        description: "Service-Public indique d'anticiper cette démarche au moins deux jours ouvrables avant la date effective d'embauche, sous réserve des cas de dispense de contrôle.",
-        status: "todo",
-        sourceIds: ["ct-r5221-41", "sp-autorisation-travail"],
+        description: "À anticiper au moins deux jours ouvrables avant la date effective d'embauche, sous réserve des cas dans lesquels cette vérification n'est pas requise.",
+        status: input.employerVerificationCompleted === true ? "done" : "todo",
+        sourceIds: ["ct-r5221-41", "ct-r5221-42", "sp-autorisation-travail"],
       }],
     }),
   },
