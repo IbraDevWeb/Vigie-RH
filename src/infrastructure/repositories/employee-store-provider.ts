@@ -1,8 +1,8 @@
 import type { EmployeeStore } from "./employee-store";
 import { InMemoryEmployeeStore } from "./in-memory-employee-store";
 import { PostgresEmployeeStore } from "./postgres-employee-store";
+import { PersistenceConfigurationError } from "./persistence-configuration-error";
 import { getPostgresPool } from "@/infrastructure/database/postgres";
-import { PersistenceConfigurationError } from "./assessment-repository-provider";
 
 let store: EmployeeStore | null = null;
 
