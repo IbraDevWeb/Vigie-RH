@@ -15,6 +15,17 @@ const base: AssessmentInput = {
   workAuthorizationGrantedForContract: null,
 };
 
+function expectValidationIssue(input: Partial<AssessmentInput>, pattern: RegExp) {
+  try {
+    validateAssessmentInput(input);
+    throw new Error("La validation aurait dû échouer.");
+  } catch (error) {
+    expect(error).toBeInstanceOf(ValidationError);
+    const validationError = error as ValidationError;
+    expect(validationError.issues.some((issue) => pattern.test(issue))).toBe(true);
+  }
+}
+
 describe("assessment validation — current right to work", () => {
   it("accepts an unknown authorization scope so the engine can review it", () => {
     const result = validateAssessmentInput(base);
@@ -24,44 +35,44 @@ describe("assessment validation — current right to work", () => {
   });
 
   it("rejects a current-right check modeled as a new contract", () => {
-    expect(() => validateAssessmentInput({
+    expectValidationIssue({
       ...base,
       newContract: true,
-    })).toThrow(ValidationError);
+    }, /situation actuelle/i);
   });
 
   it("requires the current document expiry date when a foreign document is supplied", () => {
-    expect(() => validateAssessmentInput({
+    expectValidationIssue({
       ...base,
       permitValidUntil: undefined,
-    })).toThrowError(/date de fin de validité du document actuel/i);
+    }, /date de fin de validité du document actuel/i);
   });
 
   it("requires annual hours for a student title", () => {
-    expect(() => validateAssessmentInput({
+    expectValidationIssue({
       ...base,
       permitType: "student",
       studentHoursPlanned: undefined,
-    })).toThrowError(/volume annuel de travail actuel ou prévu/i);
+    }, /volume annuel de travail actuel ou prévu/i);
   });
 
   it("requires apprenticeship qualification above 964 student hours", () => {
-    expect(() => validateAssessmentInput({
+    expectValidationIssue({
       ...base,
       permitType: "student",
       studentHoursPlanned: 1_100,
       isApprenticeship: null,
-    })).toThrowError(/contrat d'apprentissage/i);
+    }, /contrat d'apprentissage/i);
   });
 
   it("requires apprenticeship validation when that exception is invoked", () => {
-    expect(() => validateAssessmentInput({
+    expectValidationIssue({
       ...base,
       permitType: "student",
       studentHoursPlanned: 1_100,
       isApprenticeship: true,
       apprenticeshipValidated: null,
-    })).toThrowError(/validé par le service compétent/i);
+    }, /validé par le service compétent/i);
   });
 
   it("allows no permit to reach the engine without inventing an expiry date", () => {
