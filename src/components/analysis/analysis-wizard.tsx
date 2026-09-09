@@ -11,6 +11,7 @@ import type {
 import { getSources } from "@/domain/legal/source-registry";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
+import { RenewalStep } from "@/components/analysis/renewal-step";
 
 const actions: Array<{ value: ActionType; label: string; description: string }> = [
   { value: "hire", label: "Recruter", description: "Sécuriser une nouvelle embauche" },
@@ -76,6 +77,13 @@ const initial: AssessmentInput = {
   temporaryDocumentAllowsWork: null,
   workAuthorizationGrantedForContract: null,
   employerVerificationCompleted: null,
+  renewalFiled: null,
+  renewalFiledAt: undefined,
+  renewalProofType: "none",
+  renewalProofValidUntil: undefined,
+  renewalProofAllowsWork: null,
+  workAuthorizationValidUntil: undefined,
+  workAuthorizationRenewalFiled: null,
 };
 
 type AnalysisApiResponse = {
@@ -91,7 +99,7 @@ export function AnalysisWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const steps = ["Action", "Personne", "Document", "Emploi", "Résultat"];
+  const steps = ["Action", "Personne", "Document", form.action === "renew" ? "Renouvellement" : "Emploi", "Résultat"];
   const set = <K extends keyof AssessmentInput>(key: K, value: AssessmentInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -100,17 +108,25 @@ export function AnalysisWizard() {
     setForm((prev) => ({
       ...prev,
       action,
-      newContract: action === "hire" ? true : prev.newContract,
+      newContract: action === "hire" ? true : action === "renew" ? false : prev.newContract,
       contractType: action === "hire" && prev.contractType === "none" ? "cdi" : prev.contractType,
       plannedStartDate: action === "hire" ? prev.plannedStartDate : undefined,
       registeredWithFranceTravail: action === "hire" ? prev.registeredWithFranceTravail : null,
       employerVerificationCompleted: action === "hire" ? prev.employerVerificationCompleted : null,
       studentPrefectureDeclarationCompleted: action === "hire" ? prev.studentPrefectureDeclarationCompleted : null,
+      renewalFiled: action === "renew" ? prev.renewalFiled : null,
+      renewalFiledAt: action === "renew" ? prev.renewalFiledAt : undefined,
+      renewalProofType: action === "renew" ? (prev.renewalProofType ?? "none") : "none",
+      renewalProofValidUntil: action === "renew" ? prev.renewalProofValidUntil : undefined,
+      renewalProofAllowsWork: action === "renew" ? prev.renewalProofAllowsWork : null,
+      workAuthorizationValidUntil: action === "renew" ? prev.workAuthorizationValidUntil : undefined,
+      workAuthorizationRenewalFiled: action === "renew" ? prev.workAuthorizationRenewalFiled : null,
     }));
   }
 
   function selectNationality(nationalityGroup: NationalityGroup) {
     const exemptFromForeignDocument = ["france", "eu_eea_swiss"].includes(nationalityGroup);
+    const renewalApplicable = ["third_country", "algeria"].includes(nationalityGroup);
     setForm((prev) => ({
       ...prev,
       nationalityGroup,
@@ -124,10 +140,18 @@ export function AnalysisWizard() {
       jobInShortageList: nationalityGroup === "third_country" ? prev.jobInShortageList : null,
       offerPublishedThreeWeeks: nationalityGroup === "third_country" ? prev.offerPublishedThreeWeeks : null,
       noValidCandidateReceived: nationalityGroup === "third_country" ? prev.noValidCandidateReceived : null,
+      renewalFiled: renewalApplicable ? prev.renewalFiled : null,
+      renewalFiledAt: renewalApplicable ? prev.renewalFiledAt : undefined,
+      renewalProofType: renewalApplicable ? (prev.renewalProofType ?? "none") : "none",
+      renewalProofValidUntil: renewalApplicable ? prev.renewalProofValidUntil : undefined,
+      renewalProofAllowsWork: renewalApplicable ? prev.renewalProofAllowsWork : null,
+      workAuthorizationValidUntil: nationalityGroup === "third_country" ? prev.workAuthorizationValidUntil : undefined,
+      workAuthorizationRenewalFiled: nationalityGroup === "third_country" ? prev.workAuthorizationRenewalFiled : null,
     }));
   }
 
   function selectPermit(permitType: PermitType) {
+    const employeePermit = ["employee", "temporary_worker"].includes(permitType);
     setForm((prev) => ({
       ...prev,
       permitType,
@@ -142,6 +166,8 @@ export function AnalysisWizard() {
       workAuthorizationGrantedForContract: ["none", "employee", "temporary_worker", "student"].includes(permitType)
         ? prev.workAuthorizationGrantedForContract
         : null,
+      workAuthorizationValidUntil: employeePermit ? prev.workAuthorizationValidUntil : undefined,
+      workAuthorizationRenewalFiled: employeePermit ? prev.workAuthorizationRenewalFiled : null,
     }));
   }
 
@@ -204,7 +230,8 @@ export function AnalysisWizard() {
         {step === 0 && <ActionStep form={form} onSelect={selectAction} />}
         {step === 1 && <PersonStep form={form} onSelectNationality={selectNationality} set={set} />}
         {step === 2 && <PermitStep form={form} onSelectPermit={selectPermit} set={set} />}
-        {step === 3 && <EmploymentStep form={form} set={set} setFranceTravail={setFranceTravail} />}
+        {step === 3 && form.action === "renew" && <RenewalStep form={form} set={set} />}
+        {step === 3 && form.action !== "renew" && <EmploymentStep form={form} set={set} setFranceTravail={setFranceTravail} />}
         {step === 4 && result && (
           <ResultView assessmentId={assessmentId} result={result} onRestart={restart} />
         )}
@@ -248,6 +275,7 @@ export function AnalysisWizard() {
             <div><dt>Document</dt><dd>{documentSummary(form)}</dd></div>
             <div><dt>Contrat</dt><dd>{form.contractType.toUpperCase()}</dd></div>
             {form.plannedStartDate && <div><dt>Prise de poste</dt><dd>{formatDate(form.plannedStartDate)}</dd></div>}
+            {form.action === "renew" && <div><dt>Justificatif</dt><dd>{renewalProofSummary(form)}</dd></div>}
           </dl>
           <div className="mini-note">
             <Icon name="shield" />
@@ -264,7 +292,7 @@ function ActionStep({ form, onSelect }: { form: AssessmentInput; onSelect: (acti
     <section className="wizard-section">
       <p className="eyebrow">Étape 1</p>
       <h2>Que souhaitez-vous faire ?</h2>
-      <p className="muted">Le parcours « Recruter » collecte maintenant les données nécessaires à une analyse de bout en bout. Les autres actions conservent leur périmètre actuel.</p>
+      <p className="muted">Les parcours « Recruter » et « Renouveler » disposent maintenant de questionnaires dédiés. Les autres actions conservent leur périmètre actuel.</p>
       <div className="choice-grid">
         {actions.map((action) => (
           <button
@@ -323,7 +351,7 @@ function PermitStep({ form, onSelectPermit, set }: StepProps & { onSelectPermit:
   return (
     <section className="wizard-section">
       <p className="eyebrow">Étape 3</p>
-      <h2>Document actuel</h2>
+      <h2>{form.action === "renew" ? "Titre actuellement renouvelé" : "Document actuel"}</h2>
 
       {!needsForeignDocument ? (
         <div className="notice info">
@@ -335,7 +363,7 @@ function PermitStep({ form, onSelectPermit, set }: StepProps & { onSelectPermit:
         </div>
       ) : (
         <div className="form-grid">
-          <Field label="Titre / document">
+          <Field label={form.action === "renew" ? "Titre à renouveler" : "Titre / document"}>
             <select value={form.permitType} onChange={(event) => onSelectPermit(event.target.value as PermitType)}>
               {permitOptions.map((permit) => <option key={permit.value} value={permit.value}>{permit.label}</option>)}
             </select>
@@ -351,7 +379,7 @@ function PermitStep({ form, onSelectPermit, set }: StepProps & { onSelectPermit:
             </Field>
           )}
 
-          {temporary && (
+          {temporary && form.action !== "renew" && (
             <Field label="Le document porte-t-il une mention autorisant le travail ?">
               <select
                 value={triStateValue(form.temporaryDocumentAllowsWork)}
@@ -751,6 +779,18 @@ function nationalityLabel(value: NationalityGroup) {
 function documentSummary(form: AssessmentInput) {
   if (["france", "eu_eea_swiss"].includes(form.nationalityGroup)) return "Non applicable";
   return permitOptions.find((permit) => permit.value === form.permitType)?.label ?? "À préciser";
+}
+
+function renewalProofSummary(form: AssessmentInput) {
+  return {
+    none: form.renewalFiled === true ? "Dépôt déclaré, justificatif non reçu" : form.renewalFiled === false ? "Non déposé" : "À confirmer",
+    submission_attestation: "Attestation de dépôt",
+    extension_attestation: "Attestation de prolongation",
+    receipt: "Récépissé",
+    favorable_decision_attestation: "Décision favorable",
+    new_permit: "Nouveau titre reçu",
+    other: "Autre / à qualifier",
+  }[form.renewalProofType ?? "none"];
 }
 
 function answerLabel(value: AssessmentResult["workAuthorization"]) {
