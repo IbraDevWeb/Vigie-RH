@@ -48,6 +48,10 @@ function mapRow(row: EmployeeDocumentRow): EmployeeDocumentRecord {
   };
 }
 
+const selectColumns = `id, organization_id, employee_id, document_type, label, storage_key,
+  issued_at, valid_until, extracted_fields, extraction_confidence,
+  confirmed_by_user_id, confirmed_at, created_at`;
+
 export class PostgresEmployeeDocumentStore implements EmployeeDocumentStore {
   constructor(private readonly pool: Pool) {}
 
@@ -88,12 +92,23 @@ export class PostgresEmployeeDocumentStore implements EmployeeDocumentStore {
     });
   }
 
+  async listByOrganization(organizationId: string): Promise<EmployeeDocumentRecord[]> {
+    return withPostgresTenant(this.pool, organizationId, async (client) => {
+      const query = await client.query<EmployeeDocumentRow>(
+        `select ${selectColumns}
+         from employee_documents
+         where organization_id = $1
+         order by created_at desc`,
+        [organizationId],
+      );
+      return query.rows.map(mapRow);
+    });
+  }
+
   async listByEmployee(employeeId: string, organizationId: string): Promise<EmployeeDocumentRecord[]> {
     return withPostgresTenant(this.pool, organizationId, async (client) => {
       const query = await client.query<EmployeeDocumentRow>(
-        `select id, organization_id, employee_id, document_type, label, storage_key,
-                issued_at, valid_until, extracted_fields, extraction_confidence,
-                confirmed_by_user_id, confirmed_at, created_at
+        `select ${selectColumns}
          from employee_documents
          where employee_id = $1 and organization_id = $2
          order by created_at desc`,
@@ -106,9 +121,7 @@ export class PostgresEmployeeDocumentStore implements EmployeeDocumentStore {
   async findById(id: string, employeeId: string, organizationId: string): Promise<EmployeeDocumentRecord | null> {
     return withPostgresTenant(this.pool, organizationId, async (client) => {
       const query = await client.query<EmployeeDocumentRow>(
-        `select id, organization_id, employee_id, document_type, label, storage_key,
-                issued_at, valid_until, extracted_fields, extraction_confidence,
-                confirmed_by_user_id, confirmed_at, created_at
+        `select ${selectColumns}
          from employee_documents
          where id = $1 and employee_id = $2 and organization_id = $3
          limit 1`,
