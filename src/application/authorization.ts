@@ -7,6 +7,8 @@ export type Permission =
   | "employee:write"
   | "document:read"
   | "document:write"
+  | "task:read"
+  | "task:write"
   | "organization:manage";
 
 export interface ActorContext {
@@ -23,6 +25,8 @@ const permissionsByRole: Record<OrganizationRole, ReadonlySet<Permission>> = {
     "employee:write",
     "document:read",
     "document:write",
+    "task:read",
+    "task:write",
     "organization:manage",
   ]),
   hr: new Set([
@@ -32,17 +36,22 @@ const permissionsByRole: Record<OrganizationRole, ReadonlySet<Permission>> = {
     "employee:write",
     "document:read",
     "document:write",
+    "task:read",
+    "task:write",
   ]),
   advisor: new Set([
     "assessment:create",
     "assessment:read",
     "employee:read",
     "document:read",
+    "task:read",
+    "task:write",
   ]),
   readonly: new Set([
     "assessment:read",
     "employee:read",
     "document:read",
+    "task:read",
   ]),
 };
 
