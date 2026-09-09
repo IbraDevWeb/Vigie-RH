@@ -17,15 +17,25 @@ function deriveStatus(input: AssessmentInput, result: AssessmentResult): Assessm
   if (result.workAuthorization === "review" || result.employerVerification === "review") return "review_required";
 
   if (result.canWorkNow === false) {
-    if (input.action === "hire" && result.workAuthorization === "yes") return "conditional";
+    if (input.action === "hire") return "conditional";
     return "blocked";
   }
 
+  if (result.workAuthorization === "yes" && input.workAuthorizationGrantedForContract !== true) {
+    return "conditional";
+  }
+
   if (
-    result.workAuthorization === "yes"
-    || result.employerVerification === "yes"
-    || result.employmentSituation === "review"
-  ) return "conditional";
+    input.action === "hire"
+    && result.employerVerification === "yes"
+    && input.employerVerificationCompleted !== true
+  ) {
+    return "conditional";
+  }
+
+  if (result.employmentSituation === "review" && input.workAuthorizationGrantedForContract !== true) {
+    return "conditional";
+  }
 
   return "clear";
 }
