@@ -27,29 +27,33 @@ Le domaine applique une stratégie fail-closed : lorsqu'une information juridiqu
 
 Les cinq parcours principaux sont isolés par règles et/ou étapes dédiées : recruter, renouveler, modifier, contrôler le droit au travail actuel et rompre. La branche « Rompre » ne transforme jamais automatiquement la perte du droit au travail en décision de licenciement.
 
+Le domaine `employee` distingue désormais le read-model de démonstration utilisé par GitHub Pages des records persistants serveur pour les salariés et leurs métadonnées documentaires.
+
 ## Application
-Deux usages sont distincts :
+Deux usages juridiques sont distincts :
 - `assessForeignWorkerCase` : validation + exécution pure du moteur ;
 - `createForeignWorkerAssessment` : autorisation de l'acteur + validation + exécution + création d'un identifiant + sauvegarde du snapshot et des versions de règles appliquées.
 
 Le contexte applicatif d'un acteur contient `userId`, `organizationId` et un rôle (`owner`, `hr`, `advisor`, `readonly`). Les permissions sont vérifiées dans la couche application, pas dans React.
+
+Les opérations persistantes sur salariés et documents suivent le même principe : les use-cases reçoivent des ports, vérifient le RBAC et transportent explicitement l'organisation de l'acteur.
 
 En mode serveur, l'API `/api/analyse` utilise `createForeignWorkerAssessment`. La réponse contient un `assessmentId` et le `result` du moteur.
 
 Les futurs use-cases doivent rester dans cette couche et dépendre de ports plutôt que d'adapters concrets.
 
 ## Infrastructure
-Repositories présents :
-- `EmployeeRepository` pour le portefeuille salarié ;
-- `AssessmentRepository` pour les assessments ;
-- `InMemoryAssessmentRepository` pour le développement ;
-- `PostgresAssessmentRepository` pour la persistence serveur.
+Ports et adapters présents :
+- `AssessmentRepository` avec adapters mémoire et PostgreSQL ;
+- `EmployeeStore` avec adapters mémoire et PostgreSQL ;
+- `EmployeeDocumentStore` avec adapters mémoire et PostgreSQL ;
+- `EmployeeRepository` historique pour le read-model de démonstration GitHub Pages.
 
-Le repository d'assessment est tenant-scoped : chaque enregistrement porte l'organisation et l'utilisateur créateur, et `findById` exige l'organisation attendue.
+Les stores PostgreSQL sont tenant-scoped. Chaque opération reçoit `organizationId` et passe par `withPostgresTenant`, qui renseigne `vigie.organization_id` à l'intérieur d'une transaction avant les requêtes métier.
 
-`assessment-repository-provider.ts` sélectionne PostgreSQL lorsque `DATABASE_URL` est défini. Le fallback mémoire est interdit en environnement serveur de production afin d'éviter une perte silencieuse de données.
+Les providers sélectionnent PostgreSQL lorsque `DATABASE_URL` est défini. Le fallback mémoire est interdit en environnement serveur de production afin d'éviter une perte silencieuse de données.
 
-Le schéma PostgreSQL est décrit dans `db/schema.sql`. `db/rls.sql` active des policies Row-Level Security sur les tables tenant-scoped et `PostgresAssessmentRepository` renseigne `vigie.organization_id` dans chaque transaction avant d'accéder aux assessments.
+Le schéma PostgreSQL est décrit dans `db/schema.sql`. `db/rls.sql` active des policies Row-Level Security sur les tables tenant-scoped. Pour `employee_documents`, une clé étrangère composite `(employee_id, organization_id)` renforce en base l'interdiction de rattacher un document à un salarié d'une autre organisation.
 
 ### Identité serveur
 `resolveServerActor()` fournit uniquement un acteur de démonstration en environnement de développement. En production serveur, aucun utilisateur implicite n'est créé : tant qu'un véritable fournisseur d'identité/session n'est pas raccordé, l'API échoue explicitement.
@@ -62,6 +66,8 @@ GitHub Pages ne peut pas exécuter de route POST Next.js. Le build Pages utilise
 Le workflow retire `src/app/api` uniquement après les tests et le typecheck, juste avant `next build` en mode `output: export`. En développement ou sur un hébergement serveur, les routes API restent présentes.
 
 Le bridge ne contient aucune règle juridique et ne reçoit aucun secret PostgreSQL : il délègue au même use-case pur et au même moteur que le serveur.
+
+Les pages `/salaries` et `/salaries/[id]` conservent pour l'instant leur read-model de démonstration statique afin que GitHub Pages reste fonctionnel. Le raccordement UI au backend serveur sera traité séparément.
 
 ## Front
 Le wizard est un composant client. Il collecte des réponses tri-state (`true` / `false` / `null`) et transporte `null` jusqu'au moteur comme information inconnue.
@@ -83,6 +89,8 @@ Le résultat affiche notamment :
 ## Sources et IA
 Le verdict ne dépend d'aucun LLM. Un futur OCR/LLM peut extraire des champs documentaires, mais ces champs doivent rester confirmables avant d'être injectés dans le moteur déterministe.
 
+Les colonnes `extracted_fields`, `extraction_confidence`, `confirmed_by_user_id` et `confirmed_at` existent déjà dans le modèle documentaire, mais l'API de création de documents ne permet pas encore de renseigner ou confirmer automatiquement ces champs.
+
 ## CI et déploiement
 `.github/workflows/deploy-pages.yml` exécute :
 1. installation des dépendances ;
@@ -95,19 +103,21 @@ Le verdict ne dépend d'aucun LLM. Un futur OCR/LLM peut extraire des champs doc
 
 ## Production target
 Déjà amorcé :
-- PostgreSQL pour les assessments ;
+- PostgreSQL pour assessments, salariés et métadonnées documentaires ;
 - isolation tenant applicative + policies RLS ;
-- RBAC applicatif owner / HR / advisor / read-only.
+- RBAC applicatif owner / HR / advisor / read-only ;
+- intégrité tenant renforcée pour le lien document → salarié.
 
 À raccorder avant un usage réel :
 - fournisseur d'identité/session et résolution des memberships ;
-- repositories PostgreSQL pour salariés, documents, tâches et audit ;
-- chiffrement des documents ;
-- audit log append-only ;
-- queue pour rappels et synchronisations ;
 - stockage objet S3 compatible ;
+- chiffrement applicatif des documents ;
+- antivirus / contrôles de fichier ;
+- OCR/extraction avec confirmation humaine ;
+- persistence des tâches et audit log append-only ;
+- queue pour rappels et synchronisations ;
 - observabilité ;
 - import légal versionné et signé ;
 - tests E2E sur les parcours critiques.
 
-Voir aussi `docs/PERSISTENCE-RBAC.md`.
+Voir aussi `docs/PERSISTENCE-RBAC.md`, `docs/EMPLOYEE-PERSISTENCE.md` et `docs/EMPLOYEE-DOCUMENTS.md`.
