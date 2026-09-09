@@ -26,6 +26,8 @@ function mapRow(row: AssessmentRow): AssessmentRecord {
   };
 }
 
+const selectColumns = "id, organization_id, employee_id, created_by, input_snapshot, result_snapshot, rule_versions, created_at";
+
 export class PostgresAssessmentRepository implements AssessmentRepository {
   constructor(private readonly pool: Pool) {}
 
@@ -61,7 +63,7 @@ export class PostgresAssessmentRepository implements AssessmentRepository {
   async findById(id: string, organizationId: string): Promise<AssessmentRecord | null> {
     return withPostgresTenant(this.pool, organizationId, async (client) => {
       const query = await client.query<AssessmentRow>(
-        `select id, organization_id, employee_id, created_by, input_snapshot, result_snapshot, rule_versions, created_at
+        `select ${selectColumns}
          from assessments
          where id = $1 and organization_id = $2
          limit 1`,
@@ -73,10 +75,23 @@ export class PostgresAssessmentRepository implements AssessmentRepository {
     });
   }
 
+  async listByOrganization(organizationId: string): Promise<AssessmentRecord[]> {
+    return withPostgresTenant(this.pool, organizationId, async (client) => {
+      const query = await client.query<AssessmentRow>(
+        `select ${selectColumns}
+         from assessments
+         where organization_id = $1
+         order by created_at desc`,
+        [organizationId],
+      );
+      return query.rows.map(mapRow);
+    });
+  }
+
   async listByEmployee(employeeId: string, organizationId: string): Promise<AssessmentRecord[]> {
     return withPostgresTenant(this.pool, organizationId, async (client) => {
       const query = await client.query<AssessmentRow>(
-        `select id, organization_id, employee_id, created_by, input_snapshot, result_snapshot, rule_versions, created_at
+        `select ${selectColumns}
          from assessments
          where employee_id = $1 and organization_id = $2
          order by created_at desc`,
