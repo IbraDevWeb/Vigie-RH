@@ -52,6 +52,16 @@ const assessmentSchema = z.object({
   renewalProofAllowsWork: z.boolean().nullable().optional(),
   workAuthorizationValidUntil: dateSchema.optional(),
   workAuthorizationRenewalFiled: z.boolean().nullable().optional(),
+  modificationEffectiveDate: dateSchema.optional(),
+  employerChanged: z.boolean().nullable().optional(),
+  occupationChanged: z.boolean().nullable().optional(),
+  regionChanged: z.boolean().nullable().optional(),
+  salaryChanged: z.boolean().nullable().optional(),
+  workingTimeChanged: z.boolean().nullable().optional(),
+  currentOccupation: z.string().trim().min(1).optional(),
+  currentRegion: z.string().trim().min(1).optional(),
+  currentSalaryGrossMonthly: z.number().finite().positive().optional(),
+  workAuthorizationGrantedForModification: z.boolean().nullable().optional(),
 }).strict().superRefine((input, ctx) => {
   if (input.action === "hire") {
     if (!input.newContract) {
@@ -160,6 +170,104 @@ const assessmentSchema = z.object({
       });
     }
   }
+
+  if (input.action === "modify") {
+    if (!input.modificationEffectiveDate) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["modificationEffectiveDate"],
+        message: "La date d'effet envisagée de la modification est obligatoire.",
+      });
+    }
+
+    const changeDeclared = input.newContract
+      || input.employerChanged === true
+      || input.occupationChanged === true
+      || input.regionChanged === true
+      || input.salaryChanged === true
+      || input.workingTimeChanged === true;
+
+    if (!changeDeclared) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["newContract"],
+        message: "Indiquez au moins une modification : nouveau contrat, employeur, poste, région, rémunération ou temps de travail.",
+      });
+    }
+
+    if (
+      ["third_country", "algeria"].includes(input.nationalityGroup)
+      && input.permitType !== "none"
+      && !input.permitValidUntil
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["permitValidUntil"],
+        message: "La date de fin de validité du document actuel est obligatoire pour analyser une modification.",
+      });
+    }
+
+    if (input.newContract && input.contractType === "none") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["contractType"],
+        message: "Le type du nouveau contrat est obligatoire lorsqu'un nouveau contrat est prévu.",
+      });
+    }
+
+    if ((input.occupationChanged === true || input.newContract) && !input.occupation) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["occupation"],
+        message: "Le poste après modification est obligatoire lorsqu'un nouveau poste ou un nouveau contrat est prévu.",
+      });
+    }
+
+    if (
+      input.nationalityGroup === "third_country"
+      && ["employee", "temporary_worker"].includes(input.permitType)
+      && (input.regionChanged === true || input.newContract)
+      && !input.region
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["region"],
+        message: "La région après modification est obligatoire pour contrôler le périmètre géographique de l'autorisation.",
+      });
+    }
+
+    if (input.salaryChanged === true && typeof input.salaryGrossMonthly !== "number") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["salaryGrossMonthly"],
+        message: "La rémunération brute mensuelle après modification est obligatoire lorsqu'elle change.",
+      });
+    }
+
+    if (input.permitType === "student" && typeof input.studentHoursPlanned !== "number") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["studentHoursPlanned"],
+        message: "Le volume annuel de travail après modification est obligatoire pour un titre étudiant.",
+      });
+    }
+
+    const newContractNeedsAuthorization = input.nationalityGroup === "third_country"
+      && input.newContract
+      && ["employee", "temporary_worker"].includes(input.permitType);
+
+    if (
+      newContractNeedsAuthorization
+      && input.workAuthorizationGrantedForContract !== true
+      && typeof input.salaryGrossMonthly !== "number"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["salaryGrossMonthly"],
+        message: "La rémunération brute mensuelle après modification est obligatoire lorsqu'une nouvelle autorisation de travail doit être instruite.",
+      });
+    }
+  }
 });
 
 export class ValidationError extends Error {
@@ -191,5 +299,11 @@ export function validateAssessmentInput(input: Partial<AssessmentInput>): Assess
     renewalProofType: parsed.data.renewalProofType ?? "none",
     renewalProofAllowsWork: parsed.data.renewalProofAllowsWork ?? null,
     workAuthorizationRenewalFiled: parsed.data.workAuthorizationRenewalFiled ?? null,
+    employerChanged: parsed.data.employerChanged ?? null,
+    occupationChanged: parsed.data.occupationChanged ?? null,
+    regionChanged: parsed.data.regionChanged ?? null,
+    salaryChanged: parsed.data.salaryChanged ?? null,
+    workingTimeChanged: parsed.data.workingTimeChanged ?? null,
+    workAuthorizationGrantedForModification: parsed.data.workAuthorizationGrantedForModification ?? null,
   };
 }
