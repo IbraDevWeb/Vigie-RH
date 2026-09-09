@@ -1,8 +1,13 @@
 import { z } from "zod";
 import type { CreateEmployeeDocumentInput } from "./document-record";
 
+function isValidIsoCalendarDate(value: string): boolean {
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date attendue au format YYYY-MM-DD").refine(
-  (value) => !Number.isNaN(Date.parse(`${value}T00:00:00Z`)),
+  isValidIsoCalendarDate,
   "Date invalide",
 );
 
