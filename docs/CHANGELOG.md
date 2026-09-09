@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-09 — Tâches de conformité persistantes
+
+- ajout d'un modèle persistant `compliance_tasks` avec états et sévérités explicites ;
+- routes serveur de création, liste, lecture et changement d'état ;
+- filtres tenant-scoped par salarié et état ;
+- permissions RBAC `task:read` / `task:write`, avec `readonly` en lecture seule ;
+- vérification applicative des références salarié et assessment dans l'organisation courante ;
+- contraintes SQL composites tenant-aware pour salarié, assessment et futur utilisateur assigné ;
+- `completedAt` renseigné au passage à `done` et effacé lors d'une réouverture ;
+- assignation utilisateur volontairement non exposée tant que les memberships authentifiés ne sont pas raccordés ;
+- tests use-cases et adapter PostgreSQL dédiés ;
+- compatibilité maintenue avec l'export statique GitHub Pages.
+
 ## 2026-09-09 — Documents salariés persistants
 
 - ajout d'un modèle persistant dédié aux métadonnées `employee_documents` ;
