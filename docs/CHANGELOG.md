@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-09 — Documents salariés persistants
+
+- ajout d'un modèle persistant dédié aux métadonnées `employee_documents` ;
+- routes serveur de création, liste et lecture des documents d'un salarié ;
+- permissions RBAC `document:read` et `document:write` ;
+- adapter PostgreSQL exécuté sous contexte tenant transactionnel ;
+- validation stricte des dates documentaires et de leur cohérence ;
+- vérification applicative que le salarié parent appartient à l'organisation courante ;
+- contrainte SQL composite empêchant le rattachement d'un document à un salarié d'une autre organisation ;
+- champs OCR/LLM conservés dans le modèle mais non modifiables par l'API de création tant que la chaîne d'extraction contrôlée n'est pas implémentée ;
+- aucune prétention d'upload S3 ou de chiffrement applicatif dans cette tranche ;
+- compatibilité maintenue avec l'export statique GitHub Pages.
+
 ## 2026-09-09 — Persistence PostgreSQL & RBAC
 
 - ajout d'un contexte applicatif `userId` / `organizationId` / rôle pour les opérations serveur ;
