@@ -30,35 +30,40 @@ export const actionRules: LegalRule[] = [
   },
   {
     id: "renew-action",
-    version: 1,
-    description: "Workflow de renouvellement.",
-    effectiveFrom: "2024-09-01",
+    version: 2,
+    description: "Cadre opérationnel du workflow de renouvellement.",
+    effectiveFrom: "2021-05-01",
     lastReviewed: "2026-09-09",
-    sourceIds: ["sp-autorisation-travail"],
+    sourceIds: ["ceseda-r431-15-1", "sp-autorisation-travail"],
     priority: 30,
     applies: ({ input }) => input.action === "renew",
-    evaluate: () => ({
-      checklist: [
-        {
-          id: "collect-renewal",
-          label: "Collecter le justificatif de dépôt / renouvellement",
-          status: "todo",
-          sourceIds: ["sp-autorisation-travail"],
-        },
-        {
-          id: "check-temp-right",
-          label: "Contrôler le droit au travail pendant l'instruction",
-          status: "attention",
-          sourceIds: ["sp-autorisation-travail"],
-        },
-        {
-          id: "update-file",
-          label: "Mettre à jour la date d'échéance et archiver le nouveau titre",
-          status: "todo",
-          sourceIds: ["sp-autorisation-travail"],
-        },
-      ],
-    }),
+    evaluate: ({ input }) => {
+      const completed = input.renewalProofType === "new_permit";
+      const pending = input.nationalityGroup === "third_country" && input.renewalFiled === true && !completed;
+      return {
+        forceStatus: pending ? "conditional" : undefined,
+        checklist: [
+          {
+            id: "collect-renewal",
+            label: "Collecter et archiver le justificatif de renouvellement",
+            status: input.renewalFiled === true ? "done" : "todo",
+            sourceIds: ["ceseda-r431-15-1", "sp-autorisation-travail"],
+          },
+          {
+            id: "check-temp-right",
+            label: "Contrôler le droit au travail pendant toute l'instruction",
+            status: completed ? "done" : "attention",
+            sourceIds: ["sp-autorisation-travail"],
+          },
+          {
+            id: "update-file",
+            label: "Mettre à jour l'échéance et archiver le nouveau titre à réception",
+            status: completed ? "done" : "todo",
+            sourceIds: ["sp-autorisation-travail"],
+          },
+        ],
+      };
+    },
   },
   {
     id: "modify-action",
