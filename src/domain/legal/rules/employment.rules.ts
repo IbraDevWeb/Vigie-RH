@@ -1,5 +1,12 @@
 import type { AssessmentInput, LegalRule } from "../types";
 
+function authorizationGrantedForAnalyzedConfiguration(input: AssessmentInput): boolean {
+  if (input.action === "modify" && !input.newContract) {
+    return input.workAuthorizationGrantedForModification === true;
+  }
+  return input.workAuthorizationGrantedForContract === true;
+}
+
 function requiresWorkAuthorization(input: AssessmentInput): boolean {
   if (input.nationalityGroup !== "third_country") return false;
   if (input.permitType === "none") return true;
@@ -11,7 +18,7 @@ function requiresWorkAuthorization(input: AssessmentInput): boolean {
 }
 
 function requiresEmploymentSituationCheck(input: AssessmentInput): boolean {
-  return requiresWorkAuthorization(input) && input.workAuthorizationGrantedForContract !== true;
+  return requiresWorkAuthorization(input) && !authorizationGrantedForAnalyzedConfiguration(input);
 }
 
 export const employmentRules: LegalRule[] = [
@@ -25,14 +32,14 @@ export const employmentRules: LegalRule[] = [
     priority: 150,
     applies: ({ input }) => input.nationalityGroup === "third_country" && input.permitType === "none",
     evaluate: ({ input }) => ({
-      forceStatus: "conditional",
+      forceStatus: input.action === "modify" ? "blocked" : "conditional",
       patches: { canWorkNow: false, workAuthorization: "yes", confidence: "high" },
       findings: [{
         id: "at-required",
         title: input.workAuthorizationGrantedForContract === true ? "Autorisation de travail déclarée obtenue, document de séjour à compléter" : "Autorisation de travail à instruire",
         detail: input.location === "abroad"
-          ? "Le candidat est hors de France : l'autorisation de travail s'inscrit dans un parcours d'introduction plus large. Le moteur ne considère pas la prise de poste en France comme possible sur la seule base de cette donnée."
-          : "Aucun document autorisant le séjour et le travail n'est renseigné. Le droit au travail n'est donc pas établi pour une prise de poste immédiate.",
+          ? "La personne est hors de France : l'autorisation de travail s'inscrit dans un parcours d'introduction plus large. Le moteur ne considère pas la prise de poste en France comme possible sur la seule base de cette donnée."
+          : "Aucun document autorisant le séjour et le travail n'est renseigné. Le droit au travail n'est donc pas établi pour une prise ou un maintien en poste.",
         severity: "warning",
         sourceIds: ["ct-r5221-1", "sp-autorisation-travail"],
       }],
@@ -51,7 +58,9 @@ export const employmentRules: LegalRule[] = [
         },
         {
           id: "wait-right",
-          label: "Attendre que le droit au travail et le document de séjour soient établis avant la prise de poste",
+          label: input.action === "modify"
+            ? "Ne pas maintenir le salarié au travail sans document établissant son droit au travail"
+            : "Attendre que le droit au travail et le document de séjour soient établis avant la prise de poste",
           status: "blocked",
           sourceIds: ["ct-r5221-1"],
         },
@@ -60,7 +69,7 @@ export const employmentRules: LegalRule[] = [
   },
   {
     id: "employee-card-new-contract",
-    version: 2,
+    version: 3,
     description: "Nouveau contrat avec titre salarié/travailleur temporaire : nouvelle autorisation de travail à contrôler.",
     effectiveFrom: "2024-09-01",
     lastReviewed: "2026-09-09",
@@ -75,7 +84,7 @@ export const employmentRules: LegalRule[] = [
       return {
         forceStatus: granted ? undefined : "conditional",
         patches: {
-          canWorkNow: input.action === "hire" ? granted : null,
+          canWorkNow: granted,
           workAuthorization: "yes",
           confidence: granted ? "high" : "medium",
         },
@@ -83,8 +92,8 @@ export const employmentRules: LegalRule[] = [
           id: "new-contract-at",
           title: granted ? "Autorisation déclarée obtenue pour le nouveau contrat" : "Nouveau contrat : autorisation à obtenir",
           detail: granted
-            ? "L'autorisation correspondant au nouveau contrat est déclarée comme obtenue. Le moteur conserve néanmoins les autres contrôles préalables à l'embauche."
-            : "L'article R. 5221-1 prévoit qu'un nouveau contrat de travail fait l'objet d'une demande d'autorisation de travail. La prise de poste ne doit pas être autorisée sur la seule base de l'ancien contrat.",
+            ? "L'autorisation correspondant au nouveau contrat est déclarée comme obtenue. Le moteur conserve les autres contrôles applicables à la configuration analysée."
+            : "L'article R. 5221-1 prévoit qu'un nouveau contrat de travail fait l'objet d'une demande d'autorisation de travail. La nouvelle configuration ne doit pas être mise en œuvre sur la seule base de l'ancien contrat.",
           severity: granted ? "success" : "warning",
           sourceIds: ["ct-r5221-1", "sp-autorisation-travail"],
         }],
@@ -99,7 +108,7 @@ export const employmentRules: LegalRule[] = [
   },
   {
     id: "student-964",
-    version: 3,
+    version: 4,
     description: "Étudiant : dispense jusqu'à 964 heures/an et traitement de l'exception apprentissage au-delà.",
     effectiveFrom: "2026-04-26",
     lastReviewed: "2026-09-09",
@@ -180,11 +189,11 @@ export const employmentRules: LegalRule[] = [
         };
       }
 
-      const granted = input.workAuthorizationGrantedForContract === true;
+      const granted = authorizationGrantedForAnalyzedConfiguration(input);
       return {
         forceStatus: granted ? undefined : "conditional",
         patches: {
-          canWorkNow: input.action === "hire" ? granted : null,
+          canWorkNow: ["hire", "modify"].includes(input.action) ? granted : null,
           workAuthorization: "yes",
           confidence: granted ? "high" : "medium",
         },
@@ -192,8 +201,8 @@ export const employmentRules: LegalRule[] = [
           id: "student-over-limit",
           title: granted ? "Autorisation déclarée obtenue au-delà de 964 h/an" : "Autorisation à instruire au-delà de 964 h/an",
           detail: granted
-            ? "Le volume déclaré dépasse 964 heures et l'autorisation correspondante est déclarée comme obtenue pour le contrat."
-            : "Le volume déclaré dépasse 964 heures sur l'année et le contrat n'est pas renseigné comme apprentissage relevant de l'exception modélisée. Une autorisation de travail doit être instruite avant la prise de poste.",
+            ? "Le volume déclaré dépasse 964 heures et l'autorisation correspondante est déclarée comme obtenue pour la configuration analysée."
+            : "Le volume déclaré dépasse 964 heures sur l'année et le contrat n'est pas renseigné comme apprentissage relevant de l'exception modélisée. Une autorisation de travail doit être instruite avant d'appliquer cette configuration.",
           severity: granted ? "success" : "warning",
           sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
         }],
@@ -208,13 +217,13 @@ export const employmentRules: LegalRule[] = [
   },
   {
     id: "work-authorization-delivery-criteria",
-    version: 1,
+    version: 2,
     description: "Lorsque l'autorisation doit encore être instruite, rappeler les autres critères de délivrance non automatisés.",
     effectiveFrom: "2024-09-01",
     lastReviewed: "2026-09-09",
     sourceIds: ["ct-r5221-20", "sp-autorisation-travail"],
     priority: 95,
-    applies: ({ input }) => requiresWorkAuthorization(input) && input.workAuthorizationGrantedForContract !== true,
+    applies: ({ input }) => requiresWorkAuthorization(input) && !authorizationGrantedForAnalyzedConfiguration(input),
     evaluate: ({ input }) => ({
       findings: [{
         id: "work-authorisation-criteria",
