@@ -9,7 +9,7 @@ export const permitRules: LegalRule[] = [
   {
     id: "expired-permit",
     version: 1,
-    description: "Un document expiré sans justificatif temporaire autorisant le travail empêche la prise ou le maintien en poste.",
+    description: "Un document expiré empêche d'établir un droit au travail à partir de ce document.",
     effectiveFrom: "2024-09-01",
     lastReviewed: "2026-09-09",
     sourceIds: ["sp-autorisation-travail", "sp-sanctions"],
@@ -17,40 +17,25 @@ export const permitRules: LegalRule[] = [
     applies: ({ input, today }) => Boolean(input.permitValidUntil)
       && daysUntil(input.permitValidUntil!, today) < 0
       && !["france", "eu_eea_swiss"].includes(input.nationalityGroup),
-    evaluate: ({ input }) => {
-      if (["receipt", "extension_attestation"].includes(input.permitType) && input.temporaryDocumentAllowsWork === true) {
-        return {
-          patches: { canWorkNow: true, confidence: "medium" },
-          findings: [{
-            id: "temp-allows-work",
-            title: "Document temporaire déclaré comme autorisant le travail",
-            detail: "Le maintien ou la prise de poste ne peut être envisagé que dans la limite de la mention exacte et de la validité du document temporaire renseigné.",
-            severity: "warning",
-            sourceIds: ["sp-autorisation-travail"],
-          }],
-        };
-      }
-
-      return {
-        forceStatus: input.action === "hire" ? "conditional" : "blocked",
-        patches: { canWorkNow: false, confidence: "high" },
-        findings: [{
-          id: "expired",
-          title: "Document expiré : droit au travail non établi",
-          detail: "Le document renseigné est expiré et aucun justificatif temporaire autorisant le travail n'est établi dans le dossier.",
-          severity: "danger",
-          sourceIds: ["sp-autorisation-travail", "sp-sanctions"],
-        }],
-        checklist: [{
-          id: "stop-work",
-          label: input.action === "hire"
-            ? "Ne pas autoriser la prise de poste tant qu'un droit au travail valide n'est pas établi"
-            : "Ne pas maintenir le salarié au travail tant que le droit au travail n'est pas établi",
-          status: "blocked",
-          sourceIds: ["sp-sanctions"],
-        }],
-      };
-    },
+    evaluate: ({ input }) => ({
+      forceStatus: input.action === "hire" ? "conditional" : "blocked",
+      patches: { canWorkNow: false, confidence: "high" },
+      findings: [{
+        id: "expired",
+        title: "Document expiré : droit au travail non établi",
+        detail: "Le document renseigné est expiré. Le moteur ne lui attribue aucun droit au travail après sa date de validité ; un éventuel nouveau document provisoire doit être analysé comme document distinct.",
+        severity: "danger",
+        sourceIds: ["sp-autorisation-travail", "sp-sanctions"],
+      }],
+      checklist: [{
+        id: "stop-work",
+        label: input.action === "hire"
+          ? "Ne pas autoriser la prise de poste tant qu'un droit au travail valide n'est pas établi"
+          : "Ne pas maintenir le salarié au travail tant que le droit au travail n'est pas établi",
+        status: "blocked",
+        sourceIds: ["sp-sanctions"],
+      }],
+    }),
   },
   {
     id: "expiry-alert",
@@ -111,7 +96,7 @@ export const permitRules: LegalRule[] = [
 
       if (input.temporaryDocumentAllowsWork === false) {
         return {
-          forceStatus: input.action === "hire" ? "conditional" : "blocked",
+          forceStatus: "review_required",
           patches: { canWorkNow: false, workAuthorization: "review", confidence: "high" },
           findings: [{
             id: "temporary-no",
