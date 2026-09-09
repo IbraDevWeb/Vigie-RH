@@ -8,6 +8,11 @@ const statusRank: Record<AssessmentStatus, number> = {
   review_required: 3,
 };
 
+function earliestIsoDate(...dates: Array<string | undefined>): string | null {
+  const available = dates.filter((date): date is string => Boolean(date)).sort();
+  return available[0] ?? null;
+}
+
 function worstStatus(a: AssessmentStatus, b?: AssessmentStatus): AssessmentStatus {
   if (!b) return a;
   return statusRank[b] > statusRank[a] ? b : a;
@@ -83,7 +88,7 @@ export function assessCase(input: AssessmentInput, now = new Date()): Assessment
     employerVerification: "not_applicable",
     employmentSituation: "not_applicable",
     shortageOccupation: "not_applicable",
-    nextDeadline: null,
+    nextDeadline: earliestIsoDate(input.plannedStartDate, input.permitValidUntil),
     confidence: "medium",
     findings: [],
     checklist: [],
