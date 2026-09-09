@@ -68,6 +68,7 @@ const initial: AssessmentInput = {
   studentHoursPlanned: undefined,
   isApprenticeship: null,
   apprenticeshipValidated: null,
+  studentPrefectureDeclarationCompleted: null,
   registeredWithFranceTravail: null,
   jobInShortageList: null,
   offerPublishedThreeWeeks: null,
@@ -102,8 +103,9 @@ export function AnalysisWizard() {
       newContract: action === "hire" ? true : prev.newContract,
       contractType: action === "hire" && prev.contractType === "none" ? "cdi" : prev.contractType,
       plannedStartDate: action === "hire" ? prev.plannedStartDate : undefined,
-      employerVerificationCompleted: action === "hire" ? prev.employerVerificationCompleted : null,
       registeredWithFranceTravail: action === "hire" ? prev.registeredWithFranceTravail : null,
+      employerVerificationCompleted: action === "hire" ? prev.employerVerificationCompleted : null,
+      studentPrefectureDeclarationCompleted: action === "hire" ? prev.studentPrefectureDeclarationCompleted : null,
     }));
   }
 
@@ -116,8 +118,9 @@ export function AnalysisWizard() {
       permitValidUntil: exemptFromForeignDocument ? undefined : prev.permitValidUntil,
       temporaryDocumentAllowsWork: null,
       workAuthorizationGrantedForContract: nationalityGroup === "third_country" ? prev.workAuthorizationGrantedForContract : null,
-      employerVerificationCompleted: nationalityGroup === "third_country" ? prev.employerVerificationCompleted : null,
       registeredWithFranceTravail: nationalityGroup === "third_country" ? prev.registeredWithFranceTravail : null,
+      employerVerificationCompleted: nationalityGroup === "third_country" ? prev.employerVerificationCompleted : null,
+      studentPrefectureDeclarationCompleted: nationalityGroup === "third_country" ? prev.studentPrefectureDeclarationCompleted : null,
       jobInShortageList: nationalityGroup === "third_country" ? prev.jobInShortageList : null,
       offerPublishedThreeWeeks: nationalityGroup === "third_country" ? prev.offerPublishedThreeWeeks : null,
       noValidCandidateReceived: nationalityGroup === "third_country" ? prev.noValidCandidateReceived : null,
@@ -135,6 +138,10 @@ export function AnalysisWizard() {
       studentHoursPlanned: permitType === "student" ? prev.studentHoursPlanned : undefined,
       isApprenticeship: permitType === "student" ? prev.isApprenticeship : null,
       apprenticeshipValidated: permitType === "student" ? prev.apprenticeshipValidated : null,
+      studentPrefectureDeclarationCompleted: permitType === "student" ? prev.studentPrefectureDeclarationCompleted : null,
+      workAuthorizationGrantedForContract: ["none", "employee", "temporary_worker", "student"].includes(permitType)
+        ? prev.workAuthorizationGrantedForContract
+        : null,
     }));
   }
 
@@ -373,8 +380,8 @@ function PermitStep({ form, onSelectPermit, set }: StepProps & { onSelectPermit:
         <div className="notice info">
           <Icon name="shield" />
           <div>
-            <strong>Périmètre du titre Talent à confirmer</strong>
-            <p>Le moteur reste fail-closed tant que la sous-catégorie et la correspondance entre l'activité autorisée et le poste envisagé ne sont pas établies.</p>
+            <strong>Sous-catégorie Talent requise pour conclure</strong>
+            <p>Le moteur reste fail-closed tant que le fondement exact et le périmètre d'activité de la carte Talent ne sont pas renseignés.</p>
           </div>
         </div>
       )}
@@ -400,7 +407,16 @@ function EmploymentStep({
   const thirdCountry = form.nationalityGroup === "third_country";
   const specialRegime = form.nationalityGroup === "algeria";
   const student = form.permitType === "student";
+  const studentOverLimit = student && typeof form.studentHoursPlanned === "number" && form.studentHoursPlanned > 964;
+  const needsWorkAuthorization = thirdCountry && (
+    form.permitType === "none"
+    || (["employee", "temporary_worker"].includes(form.permitType) && form.newContract && ["hire", "modify"].includes(form.action))
+    || (studentOverLimit && form.isApprenticeship !== true)
+  );
   const franceHire = isHire && thirdCountry && form.location === "france";
+  const needsPrefectureCheck = franceHire && form.registeredWithFranceTravail === false;
+  const needsStudentDeclaration = isHire && thirdCountry && student;
+  const needsEmploymentSituation = needsWorkAuthorization && form.workAuthorizationGrantedForContract !== true;
 
   return (
     <section className="wizard-section">
@@ -443,45 +459,59 @@ function EmploymentStep({
           </Field>
         )}
 
-        <Field label="Rémunération brute mensuelle">
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.salaryGrossMonthly ?? ""}
-            onChange={(event) => set("salaryGrossMonthly", event.target.value ? Number(event.target.value) : undefined)}
-            placeholder="Ex. 2500"
-          />
-        </Field>
-
         {student && (
-          <>
-            <Field label="Heures de travail prévues sur l'année">
-              <input
-                type="number"
-                min="0"
-                value={form.studentHoursPlanned ?? ""}
-                onChange={(event) => set("studentHoursPlanned", event.target.value ? Number(event.target.value) : undefined)}
-                placeholder="Ex. 700"
-              />
-            </Field>
-            <Field label="S'agit-il d'un contrat d'apprentissage dans le cadre du cursus ?">
-              <select value={triStateValue(form.isApprenticeship)} onChange={(event) => set("isApprenticeship", parseTriState(event.target.value))}>
-                <option value="unknown">À préciser</option>
-                <option value="true">Oui</option>
-                <option value="false">Non</option>
-              </select>
-            </Field>
-            {form.isApprenticeship === true && (
-              <Field label="Le contrat d'apprentissage a-t-il été validé par le service compétent ?">
-                <select value={triStateValue(form.apprenticeshipValidated)} onChange={(event) => set("apprenticeshipValidated", parseTriState(event.target.value))}>
-                  <option value="unknown">À confirmer</option>
-                  <option value="true">Oui</option>
-                  <option value="false">Non / pas encore</option>
-                </select>
-              </Field>
-            )}
-          </>
+          <Field label="Heures de travail prévues sur l'année">
+            <input
+              type="number"
+              min="0"
+              value={form.studentHoursPlanned ?? ""}
+              onChange={(event) => set("studentHoursPlanned", event.target.value ? Number(event.target.value) : undefined)}
+              placeholder="Ex. 700"
+            />
+          </Field>
+        )}
+
+        {studentOverLimit && (
+          <Field label="S'agit-il d'un contrat d'apprentissage dans le cadre du cursus ?">
+            <select value={triStateValue(form.isApprenticeship)} onChange={(event) => set("isApprenticeship", parseTriState(event.target.value))}>
+              <option value="unknown">À préciser</option>
+              <option value="true">Oui</option>
+              <option value="false">Non</option>
+            </select>
+          </Field>
+        )}
+
+        {studentOverLimit && form.isApprenticeship === true && (
+          <Field label="Le contrat d'apprentissage a-t-il été validé par le service compétent ?">
+            <select value={triStateValue(form.apprenticeshipValidated)} onChange={(event) => set("apprenticeshipValidated", parseTriState(event.target.value))}>
+              <option value="unknown">À confirmer</option>
+              <option value="true">Oui</option>
+              <option value="false">Non / pas encore</option>
+            </select>
+          </Field>
+        )}
+
+        {needsWorkAuthorization && (
+          <Field label="Une autorisation de travail a-t-elle déjà été accordée pour ce contrat précis ?">
+            <select value={triStateValue(form.workAuthorizationGrantedForContract)} onChange={(event) => set("workAuthorizationGrantedForContract", parseTriState(event.target.value))}>
+              <option value="unknown">À confirmer / pas encore</option>
+              <option value="true">Oui, décision obtenue</option>
+              <option value="false">Non</option>
+            </select>
+          </Field>
+        )}
+
+        {needsEmploymentSituation && (
+          <Field label="Rémunération brute mensuelle proposée">
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.salaryGrossMonthly ?? ""}
+              onChange={(event) => set("salaryGrossMonthly", event.target.value ? Number(event.target.value) : undefined)}
+              placeholder="Ex. 2500"
+            />
+          </Field>
         )}
       </div>
 
@@ -491,13 +521,13 @@ function EmploymentStep({
           <div className="form-grid">
             <Field label="La personne produit-elle un justificatif d'inscription France Travail comme demandeur d'emploi ?">
               <select value={triStateValue(form.registeredWithFranceTravail)} onChange={(event) => setFranceTravail(parseTriState(event.target.value))}>
-                <option value="unknown">À confirmer</option>
-                <option value="true">Oui</option>
+                <option value="unknown">Je ne sais pas / à vérifier</option>
+                <option value="true">Oui, justificatif disponible</option>
                 <option value="false">Non</option>
               </select>
             </Field>
 
-            {form.registeredWithFranceTravail === false && (
+            {needsPrefectureCheck && (
               <Field label="La vérification préfectorale a-t-elle déjà été accomplie ?">
                 <select value={triStateValue(form.employerVerificationCompleted)} onChange={(event) => set("employerVerificationCompleted", parseTriState(event.target.value))}>
                   <option value="unknown">Pas encore / à confirmer</option>
@@ -506,56 +536,77 @@ function EmploymentStep({
                 </select>
               </Field>
             )}
+
+            {needsStudentDeclaration && (
+              <Field label="La déclaration nominative préalable de l'embauche de l'étudiant a-t-elle été accomplie ?">
+                <select
+                  value={triStateValue(form.studentPrefectureDeclarationCompleted)}
+                  onChange={(event) => set("studentPrefectureDeclarationCompleted", parseTriState(event.target.value))}
+                >
+                  <option value="unknown">Je ne sais pas / pas encore</option>
+                  <option value="true">Oui, preuve disponible</option>
+                  <option value="false">Non</option>
+                </select>
+              </Field>
+            )}
           </div>
+
+          {form.registeredWithFranceTravail === true && (
+            <div className="notice info">
+              <Icon name="check" />
+              <div>
+                <strong>Exception France Travail déclarée</strong>
+                <p>Les vérifications R. 5221-41 et R. 5221-42 sont écartées dans le cas modélisé. Les autres formalités applicables restent indépendantes, notamment la déclaration nominative propre à l'embauche d'un étudiant.</p>
+              </div>
+            </div>
+          )}
         </>
       )}
 
-      {thirdCountry && (
+      {needsEmploymentSituation && (
         <>
-          <h3>Autorisation de travail et situation de l'emploi</h3>
-          <p className="muted">Ces données sont utilisées lorsque le régime du document impose une nouvelle autorisation de travail. Le moteur ignore les champs non pertinents et ne transforme jamais « je ne sais pas » en fait acquis.</p>
+          <h3>Situation de l'emploi</h3>
+          <p className="muted">Ces données sont utilisées lorsque l'autorisation de travail doit encore être instruite. Le moteur ignore les champs non pertinents et ne transforme jamais « je ne sais pas » en fait acquis.</p>
           <div className="form-grid">
-            <Field label="Une autorisation de travail a-t-elle déjà été accordée pour ce contrat précis ?">
-              <select value={triStateValue(form.workAuthorizationGrantedForContract)} onChange={(event) => set("workAuthorizationGrantedForContract", parseTriState(event.target.value))}>
-                <option value="unknown">À confirmer / pas encore</option>
-                <option value="true">Oui, décision obtenue</option>
+            <Field label="Le métier est-il sur la liste en tension pour la région ?">
+              <select value={triStateValue(form.jobInShortageList)} onChange={(event) => set("jobInShortageList", parseTriState(event.target.value))}>
+                <option value="unknown">Je ne sais pas / à vérifier</option>
+                <option value="true">Oui</option>
                 <option value="false">Non</option>
               </select>
             </Field>
 
-            {form.workAuthorizationGrantedForContract !== true && (
-              <>
-                <Field label="Le métier est-il sur la liste en tension pour la région ?">
-                  <select value={triStateValue(form.jobInShortageList)} onChange={(event) => set("jobInShortageList", parseTriState(event.target.value))}>
-                    <option value="unknown">Je ne sais pas / à vérifier</option>
-                    <option value="true">Oui</option>
-                    <option value="false">Non</option>
-                  </select>
-                </Field>
+            {form.jobInShortageList !== true && (
+              <Field label="L'offre a-t-elle été publiée 3 semaines consécutives dans les 6 derniers mois ?">
+                <select value={triStateValue(form.offerPublishedThreeWeeks)} onChange={(event) => set("offerPublishedThreeWeeks", parseTriState(event.target.value))}>
+                  <option value="unknown">Je ne sais pas / à vérifier</option>
+                  <option value="true">Oui</option>
+                  <option value="false">Non</option>
+                </select>
+              </Field>
+            )}
 
-                {form.jobInShortageList !== true && (
-                  <Field label="L'offre a-t-elle été publiée 3 semaines consécutives dans les 6 derniers mois ?">
-                    <select value={triStateValue(form.offerPublishedThreeWeeks)} onChange={(event) => set("offerPublishedThreeWeeks", parseTriState(event.target.value))}>
-                      <option value="unknown">Je ne sais pas / à vérifier</option>
-                      <option value="true">Oui</option>
-                      <option value="false">Non</option>
-                    </select>
-                  </Field>
-                )}
-
-                {form.offerPublishedThreeWeeks === true && form.jobInShortageList !== true && (
-                  <Field label="À l'issue de la publication, aucune candidature valable n'a-t-elle été reçue ?">
-                    <select value={triStateValue(form.noValidCandidateReceived)} onChange={(event) => set("noValidCandidateReceived", parseTriState(event.target.value))}>
-                      <option value="unknown">À confirmer</option>
-                      <option value="true">Oui, aucune candidature valable</option>
-                      <option value="false">Non, une candidature valable a été reçue</option>
-                    </select>
-                  </Field>
-                )}
-              </>
+            {form.offerPublishedThreeWeeks === true && form.jobInShortageList !== true && (
+              <Field label="À l'issue de la publication, aucune candidature valable n'a-t-elle été reçue ?">
+                <select value={triStateValue(form.noValidCandidateReceived)} onChange={(event) => set("noValidCandidateReceived", parseTriState(event.target.value))}>
+                  <option value="unknown">À confirmer</option>
+                  <option value="true">Oui, aucune candidature valable</option>
+                  <option value="false">Non, une candidature valable a été reçue</option>
+                </select>
+              </Field>
             )}
           </div>
         </>
+      )}
+
+      {needsWorkAuthorization && form.workAuthorizationGrantedForContract === true && (
+        <div className="notice info">
+          <Icon name="check" />
+          <div>
+            <strong>Autorisation déclarée obtenue</strong>
+            <p>Les critères ayant conduit à sa délivrance ne sont pas réévalués comme prérequis ouverts. Le moteur poursuit les contrôles du titre, de sa validité et des formalités employeur.</p>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -589,7 +640,7 @@ function ResultView({
       </div>
 
       {result.status === "review_required" && (
-        <div className="notice info">
+        <div className="notice warning">
           <Icon name="alert" />
           <div>
             <strong>Le moteur ne fournit pas de conclusion automatique sur le point incertain.</strong>
