@@ -65,6 +65,16 @@ export interface AssessmentInput {
   renewalProofAllowsWork?: boolean | null;
   workAuthorizationValidUntil?: string;
   workAuthorizationRenewalFiled?: boolean | null;
+  modificationEffectiveDate?: string;
+  employerChanged?: boolean | null;
+  occupationChanged?: boolean | null;
+  regionChanged?: boolean | null;
+  salaryChanged?: boolean | null;
+  workingTimeChanged?: boolean | null;
+  currentOccupation?: string;
+  currentRegion?: string;
+  currentSalaryGrossMonthly?: number;
+  workAuthorizationGrantedForModification?: boolean | null;
 }
 
 export interface Finding {
