@@ -5,6 +5,8 @@ Crée un assessment, valide les entrées avec Zod, exécute le moteur juridique 
 
 Dans le prototype actuel, ce repository est un adapter mémoire. La persistence PostgreSQL cible n'est pas encore branchée.
 
+> GitHub Pages ne peut pas exécuter cette route POST. Sur la démo statique, `StaticPagesAnalysisBridge` intercepte uniquement cet appel et exécute localement `assessForeignWorkerCase`, c'est-à-dire la même validation et le même moteur. La réponse garde la même forme `{ assessmentId, result }`, mais elle n'est pas persistée côté serveur.
+
 ### Exemple — recrutement d'un ressortissant de pays tiers en France
 ```json
 {
@@ -42,6 +44,37 @@ Les réponses tri-state utilisent `true`, `false` ou `null`. `null` signifie que
 - `jobInShortageList` : métier déclaré présent sur la liste applicable ;
 - `offerPublishedThreeWeeks` / `noValidCandidateReceived` : faits utilisés pour le test du marché de l'emploi.
 
+### Exemple — renouvellement
+```json
+{
+  "action": "renew",
+  "nationalityGroup": "third_country",
+  "location": "france",
+  "permitType": "employee",
+  "permitValidUntil": "2026-10-31",
+  "contractType": "cdi",
+  "newContract": false,
+  "renewalFiled": true,
+  "renewalFiledAt": "2026-09-15",
+  "renewalProofType": "extension_attestation",
+  "renewalProofValidUntil": "2027-01-15",
+  "renewalProofAllowsWork": null,
+  "workAuthorizationValidUntil": "2026-10-31",
+  "workAuthorizationRenewalFiled": true
+}
+```
+
+### Champs spécifiques utiles au parcours « Renouveler »
+- `renewalFiled` : état connu du dépôt de la demande ;
+- `renewalFiledAt` : date de dépôt lorsqu'elle est connue ;
+- `renewalProofType` : `none`, `submission_attestation`, `extension_attestation`, `receipt`, `favorable_decision_attestation`, `new_permit` ou `other` ;
+- `renewalProofValidUntil` : échéance du justificatif ou du nouveau titre lorsqu'elle est connue ;
+- `renewalProofAllowsWork` : mention de droit au travail d'un récépissé, avec `null` si elle n'est pas établie ;
+- `workAuthorizationValidUntil` : échéance séparée de l'autorisation de travail pour les titres salarié / travailleur temporaire ;
+- `workAuthorizationRenewalFiled` : état du renouvellement de cette autorisation.
+
+Le `permitType` d'un renouvellement représente le **titre actuellement renouvelé**. Un récépissé ou une attestation de prolongation doit être fourni via `renewalProofType`, pas via `permitType`.
+
 ### Réponse `201`
 ```json
 {
@@ -67,6 +100,8 @@ Les réponses tri-state utilisent `true`, `false` ou `null`. `null` signifie que
 }
 ```
 
+Sur GitHub Pages, la réponse de l'adapter statique utilise le même payload mais l'identifiant commence par `pages-` et n'implique aucune persistence distante.
+
 `result.status` vaut :
 - `clear` : aucun blocage détecté dans le périmètre modélisé et aucune démarche ouverte représentée par le moteur ;
 - `conditional` : l'opération peut poursuivre son instruction mais une ou plusieurs conditions/démarches restent à satisfaire ;
@@ -87,4 +122,4 @@ Une entrée structurellement invalide ou incomplète pour un champ obligatoire r
 Une incertitude juridiquement pertinente ne doit pas être transformée artificiellement en erreur `400` lorsqu'elle peut être représentée par une valeur `null` et traitée fail-closed par le moteur.
 
 ## GET `/api/health`
-Retourne l'état du service et le timestamp serveur courant.
+Retourne l'état du service et le timestamp serveur courant. Cette route n'existe pas dans l'artefact GitHub Pages statique.
