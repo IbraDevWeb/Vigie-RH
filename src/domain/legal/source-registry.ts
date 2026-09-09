@@ -46,6 +46,15 @@ export const legalSources: Record<string, LegalSource> = {
     lastReviewed: "2026-09-09",
     note: "Saisine au moins deux jours ouvrables avant l'embauche et délai de réponse du préfet.",
   },
+  "ct-r5221-43": {
+    id: "ct-r5221-43",
+    title: "Code du travail — article R. 5221-43",
+    authority: "legifrance",
+    url: "https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006072050/LEGISCTA000018495178/",
+    effectiveFrom: "2021-04-01",
+    lastReviewed: "2026-09-09",
+    note: "Exception aux vérifications R. 5221-41 et R. 5221-42 lorsque l'étranger produit notamment un justificatif d'inscription sur la liste des demandeurs d'emploi.",
+  },
   "sp-autorisation-travail": {
     id: "sp-autorisation-travail",
     title: "Service-Public — Autorisation de travail d'un salarié étranger en France",
@@ -68,6 +77,7 @@ export const legalSources: Record<string, LegalSource> = {
     authority: "service-public",
     url: "https://www.service-public.fr/particuliers/vosdroits/F33886",
     lastReviewed: "2026-09-09",
+    note: "Fiche vérifiée le 1er juin 2026.",
   },
 };
 
