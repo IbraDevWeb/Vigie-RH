@@ -13,6 +13,7 @@ import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { RenewalStep } from "@/components/analysis/renewal-step";
 import { ModificationStep } from "@/components/analysis/modification-step";
+import { CanWorkStep } from "@/components/analysis/can-work-step";
 
 const actions: Array<{ value: ActionType; label: string; description: string }> = [
   { value: "hire", label: "Recruter", description: "Sécuriser une nouvelle embauche" },
@@ -110,7 +111,13 @@ export function AnalysisWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const workflowStep = form.action === "renew" ? "Renouvellement" : form.action === "modify" ? "Modification" : "Emploi";
+  const workflowStep = form.action === "renew"
+    ? "Renouvellement"
+    : form.action === "modify"
+      ? "Modification"
+      : form.action === "can_work"
+        ? "Situation actuelle"
+        : "Emploi";
   const steps = ["Action", "Personne", "Document", workflowStep, "Résultat"];
   const set = <K extends keyof AssessmentInput>(key: K, value: AssessmentInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -120,7 +127,7 @@ export function AnalysisWizard() {
     setForm((prev) => ({
       ...prev,
       action,
-      newContract: action === "hire" ? true : ["renew", "modify"].includes(action) ? false : prev.newContract,
+      newContract: action === "hire" ? true : ["renew", "modify", "can_work"].includes(action) ? false : prev.newContract,
       contractType: action === "hire" && prev.contractType === "none" ? "cdi" : prev.contractType,
       plannedStartDate: action === "hire" ? prev.plannedStartDate : undefined,
       registeredWithFranceTravail: action === "hire" ? prev.registeredWithFranceTravail : null,
@@ -258,7 +265,8 @@ export function AnalysisWizard() {
         {step === 2 && <PermitStep form={form} onSelectPermit={selectPermit} set={set} />}
         {step === 3 && form.action === "renew" && <RenewalStep form={form} set={set} />}
         {step === 3 && form.action === "modify" && <ModificationStep form={form} set={set} />}
-        {step === 3 && !["renew", "modify"].includes(form.action) && <EmploymentStep form={form} set={set} setFranceTravail={setFranceTravail} />}
+        {step === 3 && form.action === "can_work" && <CanWorkStep form={form} set={set} />}
+        {step === 3 && !["renew", "modify", "can_work"].includes(form.action) && <EmploymentStep form={form} set={set} setFranceTravail={setFranceTravail} />}
         {step === 4 && result && (
           <ResultView action={form.action} assessmentId={assessmentId} result={result} onRestart={restart} />
         )}
@@ -320,7 +328,7 @@ function ActionStep({ form, onSelect }: { form: AssessmentInput; onSelect: (acti
     <section className="wizard-section">
       <p className="eyebrow">Étape 1</p>
       <h2>Que souhaitez-vous faire ?</h2>
-      <p className="muted">Les parcours « Recruter », « Renouveler » et « Modifier » disposent maintenant de questionnaires dédiés. Les autres actions conservent leur périmètre actuel.</p>
+      <p className="muted">Les parcours « Recruter », « Renouveler », « Modifier » et « Peut-il travailler ? » disposent maintenant de questionnaires dédiés. Le parcours « Rompre » conserve son périmètre actuel.</p>
       <div className="choice-grid">
         {actions.map((action) => (
           <button
