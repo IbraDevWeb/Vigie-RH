@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-09 — Parcours « Rompre »
+
+- ajout d'un questionnaire dédié aux situations où une rupture est envisagée à la suite d'une perte ou d'une incertitude sur le droit au travail ;
+- distinction explicite entre l'interdiction éventuelle de maintenir le salarié au travail et la décision de rupture, qui reste soumise à une validation de droit social ;
+- prise en compte de l'expiration du document, d'une activité non couverte, des documents temporaires et du périmètre de l'autorisation actuelle ;
+- branche spéciale pour les salariés protégés avec blocage de toute conclusion automatique ;
+- signalement des droits à calculer lorsqu'une période de travail sans autorisation est déclarée, notamment au regard de l'article L. 8252-2 ;
+- conservation de `review_required` pour toute décision de rupture afin de ne pas automatiser un licenciement à partir du seul moteur de droit au travail ;
+- ajout de sources Légifrance et Ministère du Travail dédiées ;
+- tests moteur et validation dédiés.
+
 ## 2026-09-09 — Parcours « Peut-il travailler ? »
 
 - ajout d'un questionnaire dédié au contrôle du droit au travail dans la situation actuelle ;
