@@ -10,10 +10,15 @@ export interface CreateAssessmentOutput {
   result: AssessmentResult;
 }
 
+export interface CreateAssessmentContext {
+  employeeId?: string | null;
+}
+
 export async function createForeignWorkerAssessment(
   input: Partial<AssessmentInput>,
   repository: AssessmentRepository,
   actor: ActorContext,
+  context: CreateAssessmentContext = {},
 ): Promise<CreateAssessmentOutput> {
   assertPermission(actor, "assessment:create");
 
@@ -24,6 +29,7 @@ export async function createForeignWorkerAssessment(
   await repository.save({
     id: assessmentId,
     organizationId: actor.organizationId,
+    employeeId: context.employeeId ?? null,
     createdByUserId: actor.userId,
     inputSnapshot: validatedInput,
     resultSnapshot: result,
