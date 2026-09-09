@@ -27,6 +27,8 @@ const assessmentSchema = z.object({
   occupation: z.string().trim().min(1).optional(),
   salaryGrossMonthly: z.number().finite().positive().optional(),
   studentHoursPlanned: z.number().finite().min(0).max(8_760).optional(),
+  isApprenticeship: z.boolean().nullable().optional(),
+  apprenticeshipValidated: z.boolean().nullable().optional(),
   jobInShortageList: z.boolean().nullable().optional(),
   offerPublishedThreeWeeks: z.boolean().nullable().optional(),
   noValidCandidateReceived: z.boolean().nullable().optional(),
@@ -66,6 +68,23 @@ const assessmentSchema = z.object({
     ctx.addIssue({ code: "custom", path: ["studentHoursPlanned"], message: "Le volume annuel de travail envisagé est obligatoire pour un titre étudiant." });
   }
 
+  if (
+    input.permitType === "student"
+    && typeof input.studentHoursPlanned === "number"
+    && input.studentHoursPlanned > 964
+    && typeof input.isApprenticeship !== "boolean"
+  ) {
+    ctx.addIssue({ code: "custom", path: ["isApprenticeship"], message: "Indiquez si le contrat est un contrat d'apprentissage lorsque le volume dépasse 964 heures." });
+  }
+
+  if (input.isApprenticeship === true && typeof input.apprenticeshipValidated !== "boolean") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["apprenticeshipValidated"],
+      message: "Indiquez si le contrat d'apprentissage a été validé par le service compétent.",
+    });
+  }
+
   if (input.offerPublishedThreeWeeks === true && typeof input.noValidCandidateReceived !== "boolean") {
     ctx.addIssue({
       code: "custom",
@@ -90,6 +109,8 @@ export function validateAssessmentInput(input: Partial<AssessmentInput>): Assess
 
   return {
     ...parsed.data,
+    isApprenticeship: parsed.data.isApprenticeship ?? null,
+    apprenticeshipValidated: parsed.data.apprenticeshipValidated ?? null,
     jobInShortageList: parsed.data.jobInShortageList ?? null,
     offerPublishedThreeWeeks: parsed.data.offerPublishedThreeWeeks ?? null,
     noValidCandidateReceived: parsed.data.noValidCandidateReceived ?? null,
