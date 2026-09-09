@@ -13,6 +13,21 @@ function worstStatus(a: AssessmentStatus, b?: AssessmentStatus): AssessmentStatu
   return statusRank[b] > statusRank[a] ? b : a;
 }
 
+function applyOperationalHireGate(input: AssessmentInput, result: AssessmentResult): void {
+  if (input.action !== "hire" || input.nationalityGroup !== "third_country") return;
+
+  const prefectureVerificationStillRequired = input.location === "france"
+    && input.registeredWithFranceTravail === false
+    && input.employerVerificationCompleted !== true;
+
+  const studentDeclarationStillRequired = input.permitType === "student"
+    && input.studentPrefectureDeclarationCompleted !== true;
+
+  if (prefectureVerificationStillRequired || studentDeclarationStillRequired) {
+    result.canWorkNow = false;
+  }
+}
+
 function deriveStatus(input: AssessmentInput, result: AssessmentResult): AssessmentStatus {
   if (result.workAuthorization === "review" || result.employerVerification === "review") return "review_required";
 
@@ -107,6 +122,8 @@ export function assessCase(input: AssessmentInput, now = new Date()): Assessment
     if (output.sourceIds) result.sourceIds.push(...output.sourceIds);
     if (output.forceStatus) forced = worstStatus(forced, output.forceStatus);
   }
+
+  applyOperationalHireGate(input, result);
 
   const derived = deriveStatus(input, result);
   result.status = worstStatus(derived, forced);
