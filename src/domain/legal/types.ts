@@ -46,6 +46,8 @@ export interface AssessmentInput {
   offerPublishedThreeWeeks?: boolean | null;
   noValidCandidateReceived?: boolean | null;
   temporaryDocumentAllowsWork?: boolean | null;
+  workAuthorizationGrantedForContract?: boolean | null;
+  employerVerificationCompleted?: boolean | null;
 }
 
 export interface Finding {
