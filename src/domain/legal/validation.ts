@@ -144,6 +144,14 @@ const assessmentSchema = z.object({
       });
     }
 
+    if (["receipt", "extension_attestation"].includes(input.permitType)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["permitType"],
+        message: "Le récépissé ou l'attestation de prolongation doit être renseigné comme justificatif de renouvellement, pas comme titre actuellement renouvelé.",
+      });
+    }
+
     if (!input.permitValidUntil) {
       ctx.addIssue({
         code: "custom",
