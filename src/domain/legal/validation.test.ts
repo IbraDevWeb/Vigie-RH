@@ -17,6 +17,7 @@ const validHire: AssessmentInput = {
   studentHoursPlanned: undefined,
   isApprenticeship: null,
   apprenticeshipValidated: null,
+  studentPrefectureDeclarationCompleted: null,
   registeredWithFranceTravail: false,
   jobInShortageList: true,
   offerPublishedThreeWeeks: null,
@@ -45,6 +46,11 @@ describe("assessment input validation — recruitment", () => {
     expect(parsed.employerVerificationCompleted).toBe(false);
   });
 
+  it("keeps an unknown France Travail fact as null for the fail-closed engine", () => {
+    const parsed = validateAssessmentInput({ ...validHire, registeredWithFranceTravail: null });
+    expect(parsed.registeredWithFranceTravail).toBeNull();
+  });
+
   it("requires a planned start date, occupation and region for a third-country hire", () => {
     const issues = issuesFor({
       ...validHire,
@@ -61,11 +67,6 @@ describe("assessment input validation — recruitment", () => {
   it("requires the document validity date when a foreign document is supplied", () => {
     const issues = issuesFor({ ...validHire, permitValidUntil: undefined });
     expect(issues).toContain("La date de fin de validité du document est obligatoire lorsqu'un document est renseigné.");
-  });
-
-  it("requires qualification of the France Travail exception for a third-country hire in France", () => {
-    const issues = issuesFor({ ...validHire, registeredWithFranceTravail: null });
-    expect(issues).toContain("Indiquez si la personne produit un justificatif d'inscription sur la liste des demandeurs d'emploi France Travail.");
   });
 
   it("requires salary data while a work authorization still has to be instructed", () => {
@@ -95,6 +96,18 @@ describe("assessment input validation — recruitment", () => {
       workAuthorizationGrantedForContract: null,
     });
     expect(issues).toContain("Le volume annuel de travail envisagé est obligatoire pour un titre étudiant.");
+  });
+
+  it("keeps the student declaration fact nullable so the engine can return a conditional result", () => {
+    const parsed = validateAssessmentInput({
+      ...validHire,
+      permitType: "student",
+      studentHoursPlanned: 700,
+      salaryGrossMonthly: undefined,
+      workAuthorizationGrantedForContract: null,
+      studentPrefectureDeclarationCompleted: null,
+    });
+    expect(parsed.studentPrefectureDeclarationCompleted).toBeNull();
   });
 
   it("requires apprenticeship qualification above 964 hours", () => {
