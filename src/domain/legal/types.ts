@@ -40,6 +40,8 @@ export interface AssessmentInput {
   occupation?: string;
   salaryGrossMonthly?: number;
   studentHoursPlanned?: number;
+  isApprenticeship?: boolean | null;
+  apprenticeshipValidated?: boolean | null;
   jobInShortageList?: boolean | null;
   offerPublishedThreeWeeks?: boolean | null;
   noValidCandidateReceived?: boolean | null;
