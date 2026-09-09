@@ -30,7 +30,7 @@ export const actionRules: LegalRule[] = [
   },
   {
     id: "renew-action",
-    version: 2,
+    version: 3,
     description: "Cadre opérationnel du workflow de renouvellement.",
     effectiveFrom: "2021-05-01",
     lastReviewed: "2026-09-09",
@@ -39,14 +39,15 @@ export const actionRules: LegalRule[] = [
     applies: ({ input }) => input.action === "renew",
     evaluate: ({ input }) => {
       const completed = input.renewalProofType === "new_permit";
-      const pending = input.nationalityGroup === "third_country" && input.renewalFiled === true && !completed;
+      const proofExists = Boolean(input.renewalProofType) && input.renewalProofType !== "none";
+      const pending = input.nationalityGroup === "third_country" && (input.renewalFiled === true || proofExists) && !completed;
       return {
         forceStatus: pending ? "conditional" : undefined,
         checklist: [
           {
             id: "collect-renewal",
             label: "Collecter et archiver le justificatif de renouvellement",
-            status: input.renewalFiled === true ? "done" : "todo",
+            status: input.renewalFiled === true || proofExists ? "done" : "todo",
             sourceIds: ["ceseda-r431-15-1", "sp-autorisation-travail"],
           },
           {
@@ -122,13 +123,13 @@ export const actionRules: LegalRule[] = [
           id: "legal-review-termination",
           label: "Faire valider la procédure de suspension / rupture et les sommes dues",
           status: "attention",
-          sourceIds: ["sp-sanctions"],
+          sourceIds: ["sp-sanctions"]
         },
         {
           id: "document-decision",
           label: "Documenter les vérifications et la décision employeur",
           status: "todo",
-          sourceIds: ["sp-sanctions"],
+          sourceIds: ["sp-sanctions"]
         },
       ],
     }),
