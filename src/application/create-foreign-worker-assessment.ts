@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { assessForeignWorkerCase } from "./assess-foreign-worker-case";
+import { assessCase } from "@/domain/legal/engine";
+import { validateAssessmentInput } from "@/domain/legal/validation";
 import type { AssessmentInput, AssessmentResult } from "@/domain/legal/types";
 import type { AssessmentRepository } from "@/infrastructure/repositories/assessment-repository";
 
@@ -12,12 +13,13 @@ export async function createForeignWorkerAssessment(
   input: Partial<AssessmentInput>,
   repository: AssessmentRepository,
 ): Promise<CreateAssessmentOutput> {
-  const result = assessForeignWorkerCase(input);
+  const validatedInput = validateAssessmentInput(input);
+  const result = assessCase(validatedInput);
   const assessmentId = randomUUID();
 
   await repository.save({
     id: assessmentId,
-    inputSnapshot: input as AssessmentInput,
+    inputSnapshot: validatedInput,
     resultSnapshot: result,
     ruleVersions: result.appliedRules,
     createdAt: result.generatedAt,
