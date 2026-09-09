@@ -103,7 +103,7 @@ export function assessCase(input: AssessmentInput, now = new Date()): Assessment
     employerVerification: "not_applicable",
     employmentSituation: "not_applicable",
     shortageOccupation: "not_applicable",
-    nextDeadline: earliestIsoDate(input.plannedStartDate, input.modificationEffectiveDate, input.permitValidUntil),
+    nextDeadline: earliestIsoDate(input.plannedStartDate, input.modificationEffectiveDate, input.terminationLossDate, input.permitValidUntil),
     confidence: "medium",
     findings: [],
     checklist: [],
