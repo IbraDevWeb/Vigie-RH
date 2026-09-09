@@ -36,26 +36,31 @@ create table employees (
   work_site text,
   contract_type text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique(id, organization_id)
 );
 create index employees_organization_idx on employees(organization_id);
 
 create table employee_documents (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id) on delete cascade,
-  employee_id uuid not null references employees(id) on delete cascade,
+  employee_id uuid not null,
   document_type text not null,
   label text not null,
   storage_key text,
   issued_at date,
   valid_until date,
   extracted_fields jsonb not null default '{}'::jsonb,
-  extraction_confidence numeric(5,4),
+  extraction_confidence numeric(5,4) check (extraction_confidence between 0 and 1),
   confirmed_by_user_id uuid references users(id),
   confirmed_at timestamptz,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (employee_id, organization_id)
+    references employees(id, organization_id)
+    on delete cascade
 );
 create index employee_documents_expiry_idx on employee_documents(organization_id, valid_until);
+create index employee_documents_employee_idx on employee_documents(organization_id, employee_id, created_at desc);
 
 create table legal_sources (
   id text primary key,
