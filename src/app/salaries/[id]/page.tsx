@@ -6,6 +6,13 @@ import { Icon } from "@/components/ui/icon";
 import { employeeRepository } from "@/infrastructure/repositories/in-memory-employee-repository";
 import { formatFrenchDate } from "@/lib/date";
 
+export const dynamicParams = false;
+
+export async function generateStaticParams() {
+  const employees = await employeeRepository.list();
+  return employees.map((employee) => ({ id: employee.id }));
+}
+
 export default async function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const employee = await employeeRepository.findById(id);
