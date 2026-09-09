@@ -41,7 +41,11 @@ function deriveStatus(input: AssessmentInput, result: AssessmentResult): Assessm
     return "blocked";
   }
 
-  if (result.workAuthorization === "yes" && input.workAuthorizationGrantedForContract !== true) {
+  if (
+    ["hire", "modify"].includes(input.action)
+    && result.workAuthorization === "yes"
+    && input.workAuthorizationGrantedForContract !== true
+  ) {
     return "conditional";
   }
 
@@ -53,7 +57,11 @@ function deriveStatus(input: AssessmentInput, result: AssessmentResult): Assessm
     return "conditional";
   }
 
-  if (result.employmentSituation === "review" && input.workAuthorizationGrantedForContract !== true) {
+  if (
+    ["hire", "modify"].includes(input.action)
+    && result.employmentSituation === "review"
+    && input.workAuthorizationGrantedForContract !== true
+  ) {
     return "conditional";
   }
 
@@ -72,7 +80,7 @@ function labelFor(status: AssessmentStatus): string {
 function summaryFor(status: AssessmentStatus): string {
   return {
     clear: "Les informations fournies ne déclenchent pas de blocage dans le périmètre des règles modélisées.",
-    conditional: "Le dossier peut poursuivre son instruction, mais des démarches ou critères restent à satisfaire avant toute prise de poste.",
+    conditional: "Le dossier peut poursuivre son instruction, mais des démarches ou critères restent à satisfaire avant toute prise de poste ou poursuite d'activité.",
     blocked: "Le droit au travail n'est pas établi dans la situation renseignée : la prise ou le maintien en poste n'est pas autorisé en l'état.",
     review_required: "Cette situation comporte une information ou un régime que le moteur ne peut pas trancher automatiquement.",
   }[status];
