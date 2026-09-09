@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getEmployee } from "@/application/get-employee";
 import { AuthorizationError } from "@/application/authorization";
-import { PersistenceConfigurationError } from "@/infrastructure/repositories/assessment-repository-provider";
 import { getEmployeeStore } from "@/infrastructure/repositories/employee-store-provider";
+import { PersistenceConfigurationError } from "@/infrastructure/repositories/persistence-configuration-error";
 import { AuthenticationConfigurationError, resolveServerActor } from "@/infrastructure/security/request-actor";
 
 export async function GET(
