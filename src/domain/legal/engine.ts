@@ -18,6 +18,13 @@ function worstStatus(a: AssessmentStatus, b?: AssessmentStatus): AssessmentStatu
   return statusRank[b] > statusRank[a] ? b : a;
 }
 
+function workAuthorizationSatisfied(input: AssessmentInput): boolean {
+  if (input.action === "modify" && !input.newContract) {
+    return input.workAuthorizationGrantedForModification === true;
+  }
+  return input.workAuthorizationGrantedForContract === true;
+}
+
 function applyOperationalHireGate(input: AssessmentInput, result: AssessmentResult): void {
   if (input.action !== "hire" || input.nationalityGroup !== "third_country") return;
 
@@ -37,14 +44,14 @@ function deriveStatus(input: AssessmentInput, result: AssessmentResult): Assessm
   if (result.workAuthorization === "review" || result.employerVerification === "review") return "review_required";
 
   if (result.canWorkNow === false) {
-    if (input.action === "hire") return "conditional";
+    if (["hire", "modify"].includes(input.action)) return "conditional";
     return "blocked";
   }
 
   if (
     ["hire", "modify"].includes(input.action)
     && result.workAuthorization === "yes"
-    && input.workAuthorizationGrantedForContract !== true
+    && !workAuthorizationSatisfied(input)
   ) {
     return "conditional";
   }
@@ -60,7 +67,7 @@ function deriveStatus(input: AssessmentInput, result: AssessmentResult): Assessm
   if (
     ["hire", "modify"].includes(input.action)
     && result.employmentSituation === "review"
-    && input.workAuthorizationGrantedForContract !== true
+    && !workAuthorizationSatisfied(input)
   ) {
     return "conditional";
   }
@@ -80,7 +87,7 @@ function labelFor(status: AssessmentStatus): string {
 function summaryFor(status: AssessmentStatus): string {
   return {
     clear: "Les informations fournies ne déclenchent pas de blocage dans le périmètre des règles modélisées.",
-    conditional: "Le dossier peut poursuivre son instruction, mais des démarches ou critères restent à satisfaire avant toute prise de poste ou poursuite d'activité.",
+    conditional: "Le dossier peut poursuivre son instruction, mais des démarches ou critères restent à satisfaire avant toute prise de poste ou poursuite d'activité dans la configuration analysée.",
     blocked: "Le droit au travail n'est pas établi dans la situation renseignée : la prise ou le maintien en poste n'est pas autorisé en l'état.",
     review_required: "Cette situation comporte une information ou un régime que le moteur ne peut pas trancher automatiquement.",
   }[status];
@@ -96,7 +103,7 @@ export function assessCase(input: AssessmentInput, now = new Date()): Assessment
     employerVerification: "not_applicable",
     employmentSituation: "not_applicable",
     shortageOccupation: "not_applicable",
-    nextDeadline: earliestIsoDate(input.plannedStartDate, input.permitValidUntil),
+    nextDeadline: earliestIsoDate(input.plannedStartDate, input.modificationEffectiveDate, input.permitValidUntil),
     confidence: "medium",
     findings: [],
     checklist: [],
