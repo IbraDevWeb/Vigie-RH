@@ -4,13 +4,15 @@ import { permitRules } from "./permit.rules";
 import { employmentRules } from "./employment.rules";
 import { studentFormalityRules } from "./student-formality.rules";
 import { renewalRules } from "./renewal.rules";
+import { modificationRules } from "./modification.rules";
 import { actionRules } from "./action.rules";
 
 export const legalRules: LegalRule[] = [
   ...baseRules,
   ...permitRules,
+  ...renewalRules,
+  ...modificationRules,
   ...employmentRules,
   ...studentFormalityRules,
-  ...renewalRules,
   ...actionRules,
 ].sort((a, b) => b.priority - a.priority);
