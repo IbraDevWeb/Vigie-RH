@@ -7,6 +7,7 @@ import type { AssessmentRecord } from "./assessment-repository";
 
 const organizationId = "00000000-0000-4000-8000-000000000001";
 const userId = "00000000-0000-4000-8000-000000000002";
+const employeeId = "00000000-0000-4000-8000-000000000003";
 
 function makeRecord(): AssessmentRecord {
   const input = validateAssessmentInput({
@@ -22,11 +23,25 @@ function makeRecord(): AssessmentRecord {
   return {
     id: "00000000-0000-4000-8000-000000000010",
     organizationId,
+    employeeId,
     createdByUserId: userId,
     inputSnapshot: input,
     resultSnapshot: result,
     ruleVersions: result.appliedRules,
     createdAt: result.generatedAt,
+  };
+}
+
+function row(record: AssessmentRecord) {
+  return {
+    id: record.id,
+    organization_id: record.organizationId,
+    employee_id: record.employeeId,
+    created_by: record.createdByUserId,
+    input_snapshot: record.inputSnapshot,
+    result_snapshot: record.resultSnapshot,
+    rule_versions: record.ruleVersions,
+    created_at: record.createdAt,
   };
 }
 
@@ -42,8 +57,9 @@ describe("PostgresAssessmentRepository", () => {
     };
     const pool = { connect: async () => client } as unknown as Pool;
     const repository = new PostgresAssessmentRepository(pool);
+    const record = makeRecord();
 
-    await repository.save(makeRecord());
+    await repository.save(record);
 
     expect(calls[0]?.text).toBe("begin");
     expect(calls[1]).toEqual({
@@ -51,7 +67,7 @@ describe("PostgresAssessmentRepository", () => {
       values: [organizationId],
     });
     expect(calls[2]?.text).toContain("insert into assessments");
-    expect(calls[2]?.values?.[1]).toBe(organizationId);
+    expect(calls[2]?.values?.slice(0, 3)).toEqual([record.id, organizationId, employeeId]);
     expect(calls.at(-1)?.text).toBe("commit");
   });
 
@@ -61,19 +77,7 @@ describe("PostgresAssessmentRepository", () => {
     const client = {
       query: async (text: string, values?: unknown[]) => {
         calls.push({ text, values });
-        if (text.includes("select id, organization_id")) {
-          return {
-            rows: [{
-              id: record.id,
-              organization_id: record.organizationId,
-              created_by: record.createdByUserId,
-              input_snapshot: record.inputSnapshot,
-              result_snapshot: record.resultSnapshot,
-              rule_versions: record.ruleVersions,
-              created_at: record.createdAt,
-            }],
-          };
-        }
+        if (text.includes("where id = $1")) return { rows: [row(record)] };
         return { rows: [] };
       },
       release: () => undefined,
@@ -86,5 +90,26 @@ describe("PostgresAssessmentRepository", () => {
     expect(found).toEqual(record);
     const selectCall = calls.find((call) => call.text.includes("where id = $1"));
     expect(selectCall?.values).toEqual([record.id, organizationId]);
+  });
+
+  it("lists assessments by employee inside the current organization", async () => {
+    const record = makeRecord();
+    const calls: Array<{ text: string; values?: unknown[] }> = [];
+    const client = {
+      query: async (text: string, values?: unknown[]) => {
+        calls.push({ text, values });
+        if (text.includes("where employee_id = $1")) return { rows: [row(record)] };
+        return { rows: [] };
+      },
+      release: () => undefined,
+    };
+    const pool = { connect: async () => client } as unknown as Pool;
+    const repository = new PostgresAssessmentRepository(pool);
+
+    const found = await repository.listByEmployee(employeeId, organizationId);
+
+    expect(found).toEqual([record]);
+    const selectCall = calls.find((call) => call.text.includes("where employee_id = $1"));
+    expect(selectCall?.values).toEqual([employeeId, organizationId]);
   });
 });
