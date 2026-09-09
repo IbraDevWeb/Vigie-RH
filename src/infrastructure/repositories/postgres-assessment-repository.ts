@@ -5,11 +5,25 @@ import type { AssessmentRecord, AssessmentRepository } from "./assessment-reposi
 interface AssessmentRow {
   id: string;
   organization_id: string;
+  employee_id: string | null;
   created_by: string;
   input_snapshot: AssessmentRecord["inputSnapshot"];
   result_snapshot: AssessmentRecord["resultSnapshot"];
   rule_versions: AssessmentRecord["ruleVersions"];
   created_at: Date | string;
+}
+
+function mapRow(row: AssessmentRow): AssessmentRecord {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    employeeId: row.employee_id,
+    createdByUserId: row.created_by,
+    inputSnapshot: row.input_snapshot,
+    resultSnapshot: row.result_snapshot,
+    ruleVersions: row.rule_versions,
+    createdAt: new Date(row.created_at).toISOString(),
+  };
 }
 
 export class PostgresAssessmentRepository implements AssessmentRepository {
@@ -21,16 +35,18 @@ export class PostgresAssessmentRepository implements AssessmentRepository {
         `insert into assessments (
           id,
           organization_id,
+          employee_id,
           action_type,
           input_snapshot,
           result_snapshot,
           rule_versions,
           created_by,
           created_at
-        ) values ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7, $8)`,
+        ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9)`,
         [
           record.id,
           record.organizationId,
+          record.employeeId,
           record.inputSnapshot.action,
           JSON.stringify(record.inputSnapshot),
           JSON.stringify(record.resultSnapshot),
@@ -45,7 +61,7 @@ export class PostgresAssessmentRepository implements AssessmentRepository {
   async findById(id: string, organizationId: string): Promise<AssessmentRecord | null> {
     return withPostgresTenant(this.pool, organizationId, async (client) => {
       const query = await client.query<AssessmentRow>(
-        `select id, organization_id, created_by, input_snapshot, result_snapshot, rule_versions, created_at
+        `select id, organization_id, employee_id, created_by, input_snapshot, result_snapshot, rule_versions, created_at
          from assessments
          where id = $1 and organization_id = $2
          limit 1`,
@@ -53,17 +69,20 @@ export class PostgresAssessmentRepository implements AssessmentRepository {
       );
 
       const row = query.rows[0];
-      if (!row) return null;
+      return row ? mapRow(row) : null;
+    });
+  }
 
-      return {
-        id: row.id,
-        organizationId: row.organization_id,
-        createdByUserId: row.created_by,
-        inputSnapshot: row.input_snapshot,
-        resultSnapshot: row.result_snapshot,
-        ruleVersions: row.rule_versions,
-        createdAt: new Date(row.created_at).toISOString(),
-      };
+  async listByEmployee(employeeId: string, organizationId: string): Promise<AssessmentRecord[]> {
+    return withPostgresTenant(this.pool, organizationId, async (client) => {
+      const query = await client.query<AssessmentRow>(
+        `select id, organization_id, employee_id, created_by, input_snapshot, result_snapshot, rule_versions, created_at
+         from assessments
+         where employee_id = $1 and organization_id = $2
+         order by created_at desc`,
+        [employeeId, organizationId],
+      );
+      return query.rows.map(mapRow);
     });
   }
 }
