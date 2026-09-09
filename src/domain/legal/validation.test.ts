@@ -17,6 +17,7 @@ const validHire: AssessmentInput = {
   studentHoursPlanned: undefined,
   isApprenticeship: null,
   apprenticeshipValidated: null,
+  registeredWithFranceTravail: false,
   jobInShortageList: true,
   offerPublishedThreeWeeks: null,
   noValidCandidateReceived: null,
@@ -39,6 +40,7 @@ describe("assessment input validation — recruitment", () => {
   it("accepts a complete modeled hire", () => {
     const parsed = validateAssessmentInput(validHire);
     expect(parsed.action).toBe("hire");
+    expect(parsed.registeredWithFranceTravail).toBe(false);
     expect(parsed.workAuthorizationGrantedForContract).toBe(false);
     expect(parsed.employerVerificationCompleted).toBe(false);
   });
@@ -59,6 +61,11 @@ describe("assessment input validation — recruitment", () => {
   it("requires the document validity date when a foreign document is supplied", () => {
     const issues = issuesFor({ ...validHire, permitValidUntil: undefined });
     expect(issues).toContain("La date de fin de validité du document est obligatoire lorsqu'un document est renseigné.");
+  });
+
+  it("requires qualification of the France Travail exception for a third-country hire in France", () => {
+    const issues = issuesFor({ ...validHire, registeredWithFranceTravail: null });
+    expect(issues).toContain("Indiquez si la personne produit un justificatif d'inscription sur la liste des demandeurs d'emploi France Travail.");
   });
 
   it("requires salary data while a work authorization still has to be instructed", () => {
@@ -120,6 +127,6 @@ describe("assessment input validation — recruitment", () => {
       offerPublishedThreeWeeks: true,
       noValidCandidateReceived: null,
     });
-    expect(issues).toContain("Indiquez si une candidature valable a été reçue après la publication de l'offre.");
+    expect(issues).toContain("Indiquez si aucune candidature valable n'a été reçue après la publication de l'offre.");
   });
 });
