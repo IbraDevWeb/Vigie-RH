@@ -12,6 +12,7 @@ import { getSources } from "@/domain/legal/source-registry";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
 import { RenewalStep } from "@/components/analysis/renewal-step";
+import { ModificationStep } from "@/components/analysis/modification-step";
 
 const actions: Array<{ value: ActionType; label: string; description: string }> = [
   { value: "hire", label: "Recruter", description: "Sécuriser une nouvelle embauche" },
@@ -84,6 +85,16 @@ const initial: AssessmentInput = {
   renewalProofAllowsWork: null,
   workAuthorizationValidUntil: undefined,
   workAuthorizationRenewalFiled: null,
+  modificationEffectiveDate: undefined,
+  employerChanged: null,
+  occupationChanged: null,
+  regionChanged: null,
+  salaryChanged: null,
+  workingTimeChanged: null,
+  currentOccupation: undefined,
+  currentRegion: undefined,
+  currentSalaryGrossMonthly: undefined,
+  workAuthorizationGrantedForModification: null,
 };
 
 type AnalysisApiResponse = {
@@ -99,7 +110,8 @@ export function AnalysisWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const steps = ["Action", "Personne", "Document", form.action === "renew" ? "Renouvellement" : "Emploi", "Résultat"];
+  const workflowStep = form.action === "renew" ? "Renouvellement" : form.action === "modify" ? "Modification" : "Emploi";
+  const steps = ["Action", "Personne", "Document", workflowStep, "Résultat"];
   const set = <K extends keyof AssessmentInput>(key: K, value: AssessmentInput[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -108,7 +120,7 @@ export function AnalysisWizard() {
     setForm((prev) => ({
       ...prev,
       action,
-      newContract: action === "hire" ? true : action === "renew" ? false : prev.newContract,
+      newContract: action === "hire" ? true : ["renew", "modify"].includes(action) ? false : prev.newContract,
       contractType: action === "hire" && prev.contractType === "none" ? "cdi" : prev.contractType,
       plannedStartDate: action === "hire" ? prev.plannedStartDate : undefined,
       registeredWithFranceTravail: action === "hire" ? prev.registeredWithFranceTravail : null,
@@ -121,6 +133,16 @@ export function AnalysisWizard() {
       renewalProofAllowsWork: action === "renew" ? prev.renewalProofAllowsWork : null,
       workAuthorizationValidUntil: action === "renew" ? prev.workAuthorizationValidUntil : undefined,
       workAuthorizationRenewalFiled: action === "renew" ? prev.workAuthorizationRenewalFiled : null,
+      modificationEffectiveDate: action === "modify" ? prev.modificationEffectiveDate : undefined,
+      employerChanged: action === "modify" ? prev.employerChanged : null,
+      occupationChanged: action === "modify" ? prev.occupationChanged : null,
+      regionChanged: action === "modify" ? prev.regionChanged : null,
+      salaryChanged: action === "modify" ? prev.salaryChanged : null,
+      workingTimeChanged: action === "modify" ? prev.workingTimeChanged : null,
+      currentOccupation: action === "modify" ? prev.currentOccupation : undefined,
+      currentRegion: action === "modify" ? prev.currentRegion : undefined,
+      currentSalaryGrossMonthly: action === "modify" ? prev.currentSalaryGrossMonthly : undefined,
+      workAuthorizationGrantedForModification: action === "modify" ? prev.workAuthorizationGrantedForModification : null,
     }));
   }
 
@@ -134,6 +156,7 @@ export function AnalysisWizard() {
       permitValidUntil: exemptFromForeignDocument ? undefined : prev.permitValidUntil,
       temporaryDocumentAllowsWork: null,
       workAuthorizationGrantedForContract: nationalityGroup === "third_country" ? prev.workAuthorizationGrantedForContract : null,
+      workAuthorizationGrantedForModification: nationalityGroup === "third_country" ? prev.workAuthorizationGrantedForModification : null,
       registeredWithFranceTravail: nationalityGroup === "third_country" ? prev.registeredWithFranceTravail : null,
       employerVerificationCompleted: nationalityGroup === "third_country" ? prev.employerVerificationCompleted : null,
       studentPrefectureDeclarationCompleted: nationalityGroup === "third_country" ? prev.studentPrefectureDeclarationCompleted : null,
@@ -165,6 +188,9 @@ export function AnalysisWizard() {
       studentPrefectureDeclarationCompleted: permitType === "student" ? prev.studentPrefectureDeclarationCompleted : null,
       workAuthorizationGrantedForContract: ["none", "employee", "temporary_worker", "student"].includes(permitType)
         ? prev.workAuthorizationGrantedForContract
+        : null,
+      workAuthorizationGrantedForModification: ["employee", "temporary_worker", "student"].includes(permitType)
+        ? prev.workAuthorizationGrantedForModification
         : null,
       workAuthorizationValidUntil: employeePermit ? prev.workAuthorizationValidUntil : undefined,
       workAuthorizationRenewalFiled: employeePermit ? prev.workAuthorizationRenewalFiled : null,
@@ -231,9 +257,10 @@ export function AnalysisWizard() {
         {step === 1 && <PersonStep form={form} onSelectNationality={selectNationality} set={set} />}
         {step === 2 && <PermitStep form={form} onSelectPermit={selectPermit} set={set} />}
         {step === 3 && form.action === "renew" && <RenewalStep form={form} set={set} />}
-        {step === 3 && form.action !== "renew" && <EmploymentStep form={form} set={set} setFranceTravail={setFranceTravail} />}
+        {step === 3 && form.action === "modify" && <ModificationStep form={form} set={set} />}
+        {step === 3 && !["renew", "modify"].includes(form.action) && <EmploymentStep form={form} set={set} setFranceTravail={setFranceTravail} />}
         {step === 4 && result && (
-          <ResultView assessmentId={assessmentId} result={result} onRestart={restart} />
+          <ResultView action={form.action} assessmentId={assessmentId} result={result} onRestart={restart} />
         )}
 
         {error && (
@@ -276,6 +303,7 @@ export function AnalysisWizard() {
             <div><dt>Contrat</dt><dd>{form.contractType.toUpperCase()}</dd></div>
             {form.plannedStartDate && <div><dt>Prise de poste</dt><dd>{formatDate(form.plannedStartDate)}</dd></div>}
             {form.action === "renew" && <div><dt>Justificatif</dt><dd>{renewalProofSummary(form)}</dd></div>}
+            {form.action === "modify" && form.modificationEffectiveDate && <div><dt>Effet modification</dt><dd>{formatDate(form.modificationEffectiveDate)}</dd></div>}
           </dl>
           <div className="mini-note">
             <Icon name="shield" />
@@ -292,7 +320,7 @@ function ActionStep({ form, onSelect }: { form: AssessmentInput; onSelect: (acti
     <section className="wizard-section">
       <p className="eyebrow">Étape 1</p>
       <h2>Que souhaitez-vous faire ?</h2>
-      <p className="muted">Les parcours « Recruter » et « Renouveler » disposent maintenant de questionnaires dédiés. Les autres actions conservent leur périmètre actuel.</p>
+      <p className="muted">Les parcours « Recruter », « Renouveler » et « Modifier » disposent maintenant de questionnaires dédiés. Les autres actions conservent leur périmètre actuel.</p>
       <div className="choice-grid">
         {actions.map((action) => (
           <button
@@ -641,10 +669,12 @@ function EmploymentStep({
 }
 
 function ResultView({
+  action,
   assessmentId,
   result,
   onRestart,
 }: {
+  action: ActionType;
   assessmentId: string | null;
   result: AssessmentResult;
   onRestart: () => void;
@@ -662,7 +692,7 @@ function ResultView({
           {assessmentId && <small>Référence d'analyse : {assessmentId}</small>}
         </div>
         <div className="work-now">
-          <small>Peut travailler aujourd'hui</small>
+          <small>{action === "modify" ? "Modification applicable aujourd'hui" : "Peut travailler aujourd'hui"}</small>
           <strong>{booleanAnswerLabel(result.canWorkNow)}</strong>
         </div>
       </div>
