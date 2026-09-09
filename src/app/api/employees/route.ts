@@ -3,8 +3,8 @@ import { createEmployee } from "@/application/create-employee";
 import { listEmployees } from "@/application/list-employees";
 import { AuthorizationError } from "@/application/authorization";
 import { EmployeeValidationError } from "@/domain/employee/validation";
-import { PersistenceConfigurationError } from "@/infrastructure/repositories/assessment-repository-provider";
 import { getEmployeeStore } from "@/infrastructure/repositories/employee-store-provider";
+import { PersistenceConfigurationError } from "@/infrastructure/repositories/persistence-configuration-error";
 import { AuthenticationConfigurationError, resolveServerActor } from "@/infrastructure/security/request-actor";
 
 export async function GET() {
