@@ -80,6 +80,22 @@ describe("legal rule engine — recruitment", () => {
     expect(result.canWorkNow).toBe(true);
   });
 
+  it("does not report immediate work as allowed before the required prefecture verification", () => {
+    const result = assessCase({
+      ...base,
+      permitType: "resident",
+      permitValidUntil: "2030-09-01",
+      registeredWithFranceTravail: false,
+      employerVerificationCompleted: false,
+      workAuthorizationGrantedForContract: null,
+      jobInShortageList: null,
+    }, now);
+
+    expect(result.status).toBe("conditional");
+    expect(result.canWorkNow).toBe(false);
+    expect(result.employerVerification).toBe("yes");
+  });
+
   it("keeps a new employee-card contract conditional until its work authorization is obtained", () => {
     const result = assessCase({
       ...base,
@@ -126,12 +142,13 @@ describe("legal rule engine — recruitment", () => {
     expect(result.workAuthorization).toBe("no");
   });
 
-  it("allows the modeled student case under 964 hours without a distinct work authorization", () => {
+  it("allows the modeled student case under 964 hours when all prior hire formalities are completed", () => {
     const result = assessCase({
       ...base,
       permitType: "student",
       permitValidUntil: "2027-08-31",
       studentHoursPlanned: 700,
+      studentPrefectureDeclarationCompleted: true,
       workAuthorizationGrantedForContract: null,
       employerVerificationCompleted: true,
       jobInShortageList: null,
@@ -143,7 +160,7 @@ describe("legal rule engine — recruitment", () => {
     expect(result.sourceIds).toContain("ct-r5221-27");
   });
 
-  it("keeps a student hire conditional until the nominative prefecture declaration is completed", () => {
+  it("keeps a student hire conditional and forbids immediate start until the nominative declaration is completed", () => {
     const result = assessCase({
       ...base,
       permitType: "student",
@@ -156,7 +173,7 @@ describe("legal rule engine — recruitment", () => {
     }, now);
 
     expect(result.status).toBe("conditional");
-    expect(result.canWorkNow).toBe(true);
+    expect(result.canWorkNow).toBe(false);
     expect(result.checklist.find((item) => item.id === "student-prefecture-declaration")?.status).toBe("todo");
   });
 
@@ -184,6 +201,7 @@ describe("legal rule engine — recruitment", () => {
       studentHoursPlanned: 1_100,
       isApprenticeship: true,
       apprenticeshipValidated: true,
+      studentPrefectureDeclarationCompleted: true,
       workAuthorizationGrantedForContract: null,
       employerVerificationCompleted: true,
       jobInShortageList: null,
@@ -231,7 +249,7 @@ describe("legal rule engine — recruitment", () => {
     }, now);
 
     expect(result.status).toBe("review_required");
-    expect(result.canWorkNow).toBeNull();
+    expect(result.canWorkNow).toBe(false);
   });
 
   it("keeps an expired document hire conditional while forbidding immediate work", () => {
