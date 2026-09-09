@@ -14,5 +14,6 @@ export interface AssessmentRecord {
 export interface AssessmentRepository {
   save(record: AssessmentRecord): Promise<void>;
   findById(id: string, organizationId: string): Promise<AssessmentRecord | null>;
+  listByOrganization(organizationId: string): Promise<AssessmentRecord[]>;
   listByEmployee(employeeId: string, organizationId: string): Promise<AssessmentRecord[]>;
 }
