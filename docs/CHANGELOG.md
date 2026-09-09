@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-09 — Parcours « Peut-il travailler ? »
+
+- ajout d'un questionnaire dédié au contrôle du droit au travail dans la situation actuelle ;
+- contrôle de la validité du document et, pour les titres salarié / travailleur temporaire, du périmètre déclaré de l'autorisation conservée ;
+- traitement du titre étudiant avec plafond annuel de 964 heures, apprentissage et autorisation correspondant à l'activité actuelle lorsque nécessaire ;
+- maintien en `review_required` des documents provisoires, catégories génériques et régimes spéciaux insuffisamment qualifiés ;
+- aucune formalité propre à une nouvelle embauche n'est déclenchée artificiellement dans ce parcours ;
+- tests moteur et validation dédiés ;
+- compatibilité maintenue avec le mode serveur et l'export statique GitHub Pages.
+
 ## 2026-09-09 — Parcours « Modifier »
 
 - ajout d'un questionnaire dédié aux modifications de contrat, employeur, poste, région, rémunération et temps de travail ;
