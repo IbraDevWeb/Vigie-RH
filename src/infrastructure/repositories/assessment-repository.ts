@@ -2,6 +2,8 @@ import type { AppliedRuleReference, AssessmentInput, AssessmentResult } from "@/
 
 export interface AssessmentRecord {
   id: string;
+  organizationId: string;
+  createdByUserId: string;
   inputSnapshot: AssessmentInput;
   resultSnapshot: AssessmentResult;
   ruleVersions: AppliedRuleReference[];
@@ -10,5 +12,5 @@ export interface AssessmentRecord {
 
 export interface AssessmentRepository {
   save(record: AssessmentRecord): Promise<void>;
-  findById(id: string): Promise<AssessmentRecord | null>;
+  findById(id: string, organizationId: string): Promise<AssessmentRecord | null>;
 }
