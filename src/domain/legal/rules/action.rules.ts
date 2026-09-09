@@ -68,29 +68,28 @@ export const actionRules: LegalRule[] = [
   },
   {
     id: "modify-action",
-    version: 1,
-    description: "Modification du contrat ou du poste.",
+    version: 2,
+    description: "Cadre opérationnel du workflow de modification sans préjuger du verdict juridique.",
     effectiveFrom: "2024-09-01",
     lastReviewed: "2026-09-09",
-    sourceIds: ["ct-r5221-1"],
-    priority: 35,
+    sourceIds: ["ct-r5221-1", "ct-l5221-7"],
+    priority: 30,
     applies: ({ input }) => input.action === "modify" && input.nationalityGroup === "third_country",
-    evaluate: () => ({
-      forceStatus: "review_required",
-      patches: { workAuthorization: "review", confidence: "medium" },
-      findings: [{
-        id: "modify-review",
-        title: "Modification à requalifier",
-        detail: "Un changement de poste, d'employeur ou de contrat peut modifier le périmètre du droit au travail. Le moteur exige une nouvelle qualification du document et du contrat.",
-        severity: "warning",
-        sourceIds: ["ct-r5221-1"],
-      }],
-      checklist: [{
-        id: "compare-contract",
-        label: "Comparer l'ancien et le nouveau contrat / poste",
-        status: "attention",
-        sourceIds: ["ct-r5221-1"],
-      }],
+    evaluate: ({ input }) => ({
+      checklist: [
+        {
+          id: "compare-contract",
+          label: "Comparer la situation actuelle et la configuration après modification",
+          status: "done",
+          sourceIds: ["ct-r5221-1", "ct-l5221-7"],
+        },
+        {
+          id: "archive-modification-decision",
+          label: "Archiver les justificatifs et la décision relative à la modification",
+          status: input.workAuthorizationGrantedForContract === true || input.workAuthorizationGrantedForModification === true ? "todo" : "attention",
+          sourceIds: ["ct-r5221-1", "ct-l5221-7"],
+        },
+      ],
     }),
   },
   {
