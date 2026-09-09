@@ -100,6 +100,51 @@ export const canWorkRules: LegalRule[] = [
     },
   },
   {
+    id: "can-work-student-over-limit",
+    version: 1,
+    description: "Pour un étudiant dépassant 964 heures annuelles hors exception apprentissage modélisée, contrôler l'autorisation correspondant à l'activité actuelle.",
+    effectiveFrom: "2026-04-26",
+    lastReviewed: "2026-09-09",
+    sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
+    priority: 145,
+    applies: ({ input, today }) => input.action === "can_work"
+      && input.nationalityGroup === "third_country"
+      && input.permitType === "student"
+      && isPermitCurrent(input.permitValidUntil, today)
+      && typeof input.studentHoursPlanned === "number"
+      && input.studentHoursPlanned > 964
+      && input.isApprenticeship !== true,
+    evaluate: ({ input }) => {
+      const granted = input.workAuthorizationGrantedForContract === true;
+      return {
+        forceStatus: granted ? undefined : "blocked",
+        patches: {
+          canWorkNow: granted,
+          workAuthorization: "yes",
+          employerVerification: "not_applicable",
+          confidence: granted ? "high" : "high",
+        },
+        findings: [{
+          id: "can-work-student-over-limit",
+          title: granted
+            ? "Autorisation déclarée obtenue pour l'activité étudiante au-delà de 964 h/an"
+            : "Droit au travail non établi au-delà de 964 h/an",
+          detail: granted
+            ? "Le volume annuel déclaré dépasse 964 heures et l'autorisation correspondant à l'activité actuelle est déclarée comme obtenue."
+            : "Le volume annuel déclaré dépasse 964 heures et aucune autorisation correspondant à l'activité actuelle n'est déclarée comme obtenue. Le moteur ne valide donc pas le maintien au travail dans cette configuration.",
+          severity: granted ? "success" : "danger",
+          sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
+        }],
+        checklist: [{
+          id: "can-work-student-authorization-proof",
+          label: "Conserver la preuve de l'autorisation correspondant au contrat et au volume de travail actuels",
+          status: granted ? "todo" : "blocked",
+          sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
+        }],
+      };
+    },
+  },
+  {
     id: "can-work-operational-check",
     version: 1,
     description: "Checklist opérationnelle du contrôle ponctuel du droit au travail.",
