@@ -92,45 +92,4 @@ export const actionRules: LegalRule[] = [
       ],
     }),
   },
-  {
-    id: "termination-no-right",
-    version: 1,
-    description: "Rupture lorsque le droit au travail n'est plus établi.",
-    effectiveFrom: "2024-09-01",
-    lastReviewed: "2026-09-09",
-    sourceIds: ["sp-sanctions", "sp-autorisation-travail"],
-    priority: 210,
-    applies: ({ input }) => input.action === "terminate" && input.nationalityGroup === "third_country",
-    evaluate: () => ({
-      forceStatus: "review_required",
-      patches: { confidence: "medium" },
-      findings: [{
-        id: "termination-special",
-        title: "Rupture : branche droit social à valider",
-        detail: "La rupture liée à la perte du droit au travail combine droit des étrangers et droit du travail. Le prototype prépare les contrôles mais ne génère pas automatiquement une décision de rupture.",
-        severity: "warning",
-        sourceIds: ["sp-sanctions"],
-      }],
-      checklist: [
-        {
-          id: "establish-right",
-          label: "Établir précisément la date de fin du droit au travail",
-          status: "attention",
-          sourceIds: ["sp-autorisation-travail"],
-        },
-        {
-          id: "legal-review-termination",
-          label: "Faire valider la procédure de suspension / rupture et les sommes dues",
-          status: "attention",
-          sourceIds: ["sp-sanctions"]
-        },
-        {
-          id: "document-decision",
-          label: "Documenter les vérifications et la décision employeur",
-          status: "todo",
-          sourceIds: ["sp-sanctions"]
-        },
-      ],
-    }),
-  },
 ];
