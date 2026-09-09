@@ -13,6 +13,7 @@ const base: AssessmentInput = {
   occupation: "Technicien de maintenance",
   region: "Île-de-France",
   salaryGrossMonthly: 2_500,
+  registeredWithFranceTravail: false,
   jobInShortageList: true,
   offerPublishedThreeWeeks: null,
   noValidCandidateReceived: null,
@@ -28,6 +29,7 @@ describe("legal rule engine — recruitment", () => {
       ...base,
       nationalityGroup: "eu_eea_swiss",
       permitType: "none",
+      registeredWithFranceTravail: null,
       employerVerificationCompleted: null,
       workAuthorizationGrantedForContract: null,
     }, now);
@@ -44,6 +46,36 @@ describe("legal rule engine — recruitment", () => {
     expect(result.canWorkNow).toBe(false);
     expect(result.workAuthorization).toBe("yes");
     expect(result.employmentSituation).toBe("yes");
+  });
+
+  it("requires review when the France Travail verification exception is not qualified", () => {
+    const result = assessCase({
+      ...base,
+      permitType: "resident",
+      permitValidUntil: "2030-09-01",
+      registeredWithFranceTravail: null,
+      employerVerificationCompleted: null,
+      workAuthorizationGrantedForContract: null,
+    }, now);
+
+    expect(result.status).toBe("review_required");
+    expect(result.employerVerification).toBe("review");
+  });
+
+  it("applies the modeled France Travail exception to prefecture verification", () => {
+    const result = assessCase({
+      ...base,
+      permitType: "resident",
+      permitValidUntil: "2030-09-01",
+      registeredWithFranceTravail: true,
+      employerVerificationCompleted: null,
+      workAuthorizationGrantedForContract: null,
+      jobInShortageList: null,
+    }, now);
+
+    expect(result.status).toBe("clear");
+    expect(result.employerVerification).toBe("no");
+    expect(result.canWorkNow).toBe(true);
   });
 
   it("keeps a new employee-card contract conditional until its work authorization is obtained", () => {
@@ -149,6 +181,7 @@ describe("legal rule engine — recruitment", () => {
       permitType: "student",
       permitValidUntil: "2027-08-31",
       studentHoursPlanned: 700,
+      registeredWithFranceTravail: null,
     }, now);
 
     expect(result.status).toBe("review_required");
@@ -198,6 +231,7 @@ describe("legal rule engine — recruitment", () => {
     const result = assessCase({
       ...base,
       location: "abroad",
+      registeredWithFranceTravail: null,
       employerVerificationCompleted: null,
     }, now);
 
