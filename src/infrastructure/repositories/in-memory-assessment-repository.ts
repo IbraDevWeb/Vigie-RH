@@ -7,9 +7,10 @@ export class InMemoryAssessmentRepository implements AssessmentRepository {
     this.records.set(record.id, structuredClone(record));
   }
 
-  async findById(id: string): Promise<AssessmentRecord | null> {
+  async findById(id: string, organizationId: string): Promise<AssessmentRecord | null> {
     const record = this.records.get(id);
-    return record ? structuredClone(record) : null;
+    if (!record || record.organizationId !== organizationId) return null;
+    return structuredClone(record);
   }
 }
 
