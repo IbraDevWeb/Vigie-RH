@@ -1,0 +1,87 @@
+import type { Pool, PoolClient } from "pg";
+import type { AssessmentRecord, AssessmentRepository } from "./assessment-repository";
+
+interface AssessmentRow {
+  id: string;
+  organization_id: string;
+  created_by: string;
+  input_snapshot: AssessmentRecord["inputSnapshot"];
+  result_snapshot: AssessmentRecord["resultSnapshot"];
+  rule_versions: AssessmentRecord["ruleVersions"];
+  created_at: Date | string;
+}
+
+export class PostgresAssessmentRepository implements AssessmentRepository {
+  constructor(private readonly pool: Pool) {}
+
+  async save(record: AssessmentRecord): Promise<void> {
+    await this.withTenant(record.organizationId, async (client) => {
+      await client.query(
+        `insert into assessments (
+          id,
+          organization_id,
+          action_type,
+          input_snapshot,
+          result_snapshot,
+          rule_versions,
+          created_by,
+          created_at
+        ) values ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7, $8)`,
+        [
+          record.id,
+          record.organizationId,
+          record.inputSnapshot.action,
+          JSON.stringify(record.inputSnapshot),
+          JSON.stringify(record.resultSnapshot),
+          JSON.stringify(record.ruleVersions),
+          record.createdByUserId,
+          record.createdAt,
+        ],
+      );
+    });
+  }
+
+  async findById(id: string, organizationId: string): Promise<AssessmentRecord | null> {
+    return this.withTenant(organizationId, async (client) => {
+      const query = await client.query<AssessmentRow>(
+        `select id, organization_id, created_by, input_snapshot, result_snapshot, rule_versions, created_at
+         from assessments
+         where id = $1 and organization_id = $2
+         limit 1`,
+        [id, organizationId],
+      );
+
+      const row = query.rows[0];
+      if (!row) return null;
+
+      return {
+        id: row.id,
+        organizationId: row.organization_id,
+        createdByUserId: row.created_by,
+        inputSnapshot: row.input_snapshot,
+        resultSnapshot: row.result_snapshot,
+        ruleVersions: row.rule_versions,
+        createdAt: new Date(row.created_at).toISOString(),
+      };
+    });
+  }
+
+  private async withTenant<T>(
+    organizationId: string,
+    operation: (client: PoolClient) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      await client.query("select set_config('vigie.organization_id', $1, true)", [organizationId]);
+      const result = await operation(client);
+      await client.query("commit");
+      return result;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+}
