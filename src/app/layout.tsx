@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { StaticPagesAnalysisBridge } from "@/infrastructure/static-pages-analysis-bridge";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,5 +8,14 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="fr"><body>{children}</body></html>;
+  const staticPages = process.env.GITHUB_PAGES === "true";
+
+  return (
+    <html lang="fr">
+      <body>
+        {staticPages && <StaticPagesAnalysisBridge />}
+        {children}
+      </body>
+    </html>
+  );
 }
