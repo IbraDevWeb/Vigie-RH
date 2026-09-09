@@ -19,6 +19,15 @@ export const legalSources: Record<string, LegalSource> = {
     lastReviewed: "2026-09-09",
     note: "Dispenses d'autorisation de travail, avec catégories et sous-catégories précisément énumérées.",
   },
+  "ct-l5221-7": {
+    id: "ct-l5221-7",
+    title: "Code du travail — article L. 5221-7",
+    authority: "legifrance",
+    url: "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000049049535/",
+    effectiveFrom: "2024-01-28",
+    lastReviewed: "2026-09-09",
+    note: "Une autorisation de travail peut être limitée à certaines activités professionnelles ou zones géographiques.",
+  },
   "ct-r5221-20": {
     id: "ct-r5221-20",
     title: "Code du travail — article R. 5221-20",
