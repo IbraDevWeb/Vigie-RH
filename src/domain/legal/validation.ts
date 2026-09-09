@@ -29,6 +29,7 @@ const assessmentSchema = z.object({
   studentHoursPlanned: z.number().finite().min(0).max(8_760).optional(),
   jobInShortageList: z.boolean().nullable().optional(),
   offerPublishedThreeWeeks: z.boolean().nullable().optional(),
+  noValidCandidateReceived: z.boolean().nullable().optional(),
   temporaryDocumentAllowsWork: z.boolean().nullable().optional(),
 }).strict().superRefine((input, ctx) => {
   if (input.action !== "hire") return;
@@ -64,6 +65,14 @@ const assessmentSchema = z.object({
   if (input.permitType === "student" && typeof input.studentHoursPlanned !== "number") {
     ctx.addIssue({ code: "custom", path: ["studentHoursPlanned"], message: "Le volume annuel de travail envisagé est obligatoire pour un titre étudiant." });
   }
+
+  if (input.offerPublishedThreeWeeks === true && typeof input.noValidCandidateReceived !== "boolean") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["noValidCandidateReceived"],
+      message: "Indiquez si une candidature valable a été reçue après la publication de l'offre.",
+    });
+  }
 });
 
 export class ValidationError extends Error {
@@ -83,6 +92,7 @@ export function validateAssessmentInput(input: Partial<AssessmentInput>): Assess
     ...parsed.data,
     jobInShortageList: parsed.data.jobInShortageList ?? null,
     offerPublishedThreeWeeks: parsed.data.offerPublishedThreeWeeks ?? null,
+    noValidCandidateReceived: parsed.data.noValidCandidateReceived ?? null,
     temporaryDocumentAllowsWork: parsed.data.temporaryDocumentAllowsWork ?? null,
   };
 }
