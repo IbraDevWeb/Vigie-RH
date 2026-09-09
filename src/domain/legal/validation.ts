@@ -171,6 +171,61 @@ const assessmentSchema = z.object({
     }
   }
 
+  if (input.action === "can_work") {
+    if (input.newContract) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["newContract"],
+        message: "Le contrôle « Peut-il travailler ? » porte sur la situation actuelle et ne doit pas être analysé comme un nouveau contrat.",
+      });
+    }
+
+    if (
+      ["third_country", "algeria"].includes(input.nationalityGroup)
+      && input.permitType !== "none"
+      && !input.permitValidUntil
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["permitValidUntil"],
+        message: "La date de fin de validité du document actuel est obligatoire pour contrôler le droit au travail aujourd'hui.",
+      });
+    }
+
+    if (input.permitType === "student" && typeof input.studentHoursPlanned !== "number") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["studentHoursPlanned"],
+        message: "Le volume annuel de travail actuel ou prévu est obligatoire pour contrôler un titre étudiant.",
+      });
+    }
+
+    if (
+      input.permitType === "student"
+      && typeof input.studentHoursPlanned === "number"
+      && input.studentHoursPlanned > 964
+      && typeof input.isApprenticeship !== "boolean"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["isApprenticeship"],
+        message: "Indiquez si l'activité au-delà de 964 heures relève d'un contrat d'apprentissage.",
+      });
+    }
+
+    if (
+      input.permitType === "student"
+      && input.isApprenticeship === true
+      && typeof input.apprenticeshipValidated !== "boolean"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["apprenticeshipValidated"],
+        message: "Indiquez si le contrat d'apprentissage a été validé par le service compétent.",
+      });
+    }
+  }
+
   if (input.action === "modify") {
     if (!input.modificationEffectiveDate) {
       ctx.addIssue({
