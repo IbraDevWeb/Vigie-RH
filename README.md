@@ -32,7 +32,7 @@ npm run build
 La CI GitHub exécute les tests, le typecheck et un export statique avant toute publication GitHub Pages.
 
 ## Déploiement GitHub Pages
-Le site public est publié sur `https://ibradevweb.github.io/Vigie-RH/` avec `.github/workflows/deploy-pages.yml`.
+Le site public est publié sur `https://ibradevweb.github.io/Vigie-RH/` avec `.github/workflows/deploy-pages.yml`. Chaque push sur `main` déclenche la validation et, si elle réussit, la publication de la nouvelle version.
 
 Deux modes coexistent :
 - **serveur/local** : `/api/analyse` exécute le use-case d'application et sauvegarde l'assessment dans l'adapter mémoire de démonstration ;
