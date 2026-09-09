@@ -1,8 +1,13 @@
 import { z } from "zod";
-import type { ComplianceTaskStatus, CreateComplianceTaskInput } from "./task-record";
+import type {
+  ComplianceTaskListFilter,
+  ComplianceTaskStatus,
+  CreateComplianceTaskInput,
+} from "./task-record";
 
 const optionalUuid = z.string().uuid().nullable().optional();
 const optionalDueAt = z.string().datetime({ offset: true }).nullable().optional();
+const statusSchema = z.enum(["todo", "doing", "done", "cancelled"]);
 
 const createComplianceTaskSchema = z.object({
   employeeId: optionalUuid,
@@ -13,7 +18,12 @@ const createComplianceTaskSchema = z.object({
 }).strict();
 
 const updateComplianceTaskStatusSchema = z.object({
-  status: z.enum(["todo", "doing", "done", "cancelled"]),
+  status: statusSchema,
+}).strict();
+
+const complianceTaskListFilterSchema = z.object({
+  employeeId: z.string().uuid().optional(),
+  status: statusSchema.optional(),
 }).strict();
 
 export class ComplianceTaskValidationError extends Error {
@@ -23,18 +33,21 @@ export class ComplianceTaskValidationError extends Error {
   }
 }
 
-export function validateCreateComplianceTaskInput(input: unknown): CreateComplianceTaskInput {
-  const parsed = createComplianceTaskSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new ComplianceTaskValidationError(parsed.error.issues.map((issue) => issue.message));
+function parseOrThrow<T>(result: z.ZodSafeParseResult<T>): T {
+  if (!result.success) {
+    throw new ComplianceTaskValidationError(result.error.issues.map((issue) => issue.message));
   }
-  return parsed.data;
+  return result.data;
+}
+
+export function validateCreateComplianceTaskInput(input: unknown): CreateComplianceTaskInput {
+  return parseOrThrow(createComplianceTaskSchema.safeParse(input));
 }
 
 export function validateComplianceTaskStatusInput(input: unknown): ComplianceTaskStatus {
-  const parsed = updateComplianceTaskStatusSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new ComplianceTaskValidationError(parsed.error.issues.map((issue) => issue.message));
-  }
-  return parsed.data.status;
+  return parseOrThrow(updateComplianceTaskStatusSchema.safeParse(input)).status;
+}
+
+export function validateComplianceTaskListFilter(input: unknown): ComplianceTaskListFilter {
+  return parseOrThrow(complianceTaskListFilterSchema.safeParse(input));
 }
