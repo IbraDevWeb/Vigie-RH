@@ -33,14 +33,15 @@ export interface AssessmentInput {
   location: LocationStatus;
   permitType: PermitType;
   permitValidUntil?: string;
+  plannedStartDate?: string;
   contractType: ContractType;
   newContract: boolean;
   region?: string;
   occupation?: string;
   salaryGrossMonthly?: number;
   studentHoursPlanned?: number;
-  jobInShortageList?: boolean;
-  offerPublishedThreeWeeks?: boolean;
+  jobInShortageList?: boolean | null;
+  offerPublishedThreeWeeks?: boolean | null;
   temporaryDocumentAllowsWork?: boolean | null;
 }
 
@@ -60,6 +61,14 @@ export interface ChecklistItem {
   sourceIds?: string[];
 }
 
+export interface AppliedRuleReference {
+  ruleId: string;
+  version: number;
+  effectiveFrom: string;
+  lastReviewed: string;
+  sourceIds: string[];
+}
+
 export interface AssessmentResult {
   status: AssessmentStatus;
   statusLabel: string;
@@ -67,10 +76,14 @@ export interface AssessmentResult {
   canWorkNow: boolean | null;
   workAuthorization: Answer;
   employerVerification: Answer;
+  employmentSituation: Answer;
+  shortageOccupation: Answer;
+  nextDeadline: string | null;
   confidence: "high" | "medium" | "low";
   findings: Finding[];
   checklist: ChecklistItem[];
   sourceIds: string[];
+  appliedRules: AppliedRuleReference[];
   generatedAt: string;
   disclaimer: string;
 }
@@ -84,15 +97,25 @@ export interface RuleOutput {
   findings?: Finding[];
   checklist?: ChecklistItem[];
   sourceIds?: string[];
-  patches?: Partial<Pick<AssessmentResult, "canWorkNow" | "workAuthorization" | "employerVerification" | "confidence">>;
+  patches?: Partial<Pick<AssessmentResult,
+    | "canWorkNow"
+    | "workAuthorization"
+    | "employerVerification"
+    | "employmentSituation"
+    | "shortageOccupation"
+    | "nextDeadline"
+    | "confidence"
+  >>;
   forceStatus?: AssessmentStatus;
 }
 
 export interface LegalRule {
   id: string;
+  version: number;
   description: string;
   effectiveFrom: string;
   lastReviewed: string;
+  sourceIds: string[];
   priority: number;
   applies: (context: RuleContext) => boolean;
   evaluate: (context: RuleContext) => RuleOutput;
