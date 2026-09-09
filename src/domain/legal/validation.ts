@@ -37,87 +37,120 @@ const assessmentSchema = z.object({
   temporaryDocumentAllowsWork: z.boolean().nullable().optional(),
   workAuthorizationGrantedForContract: z.boolean().nullable().optional(),
   employerVerificationCompleted: z.boolean().nullable().optional(),
+  renewalFiled: z.boolean().nullable().optional(),
+  renewalFiledAt: dateSchema.optional(),
+  renewalProofType: z.enum([
+    "none",
+    "submission_attestation",
+    "extension_attestation",
+    "receipt",
+    "favorable_decision_attestation",
+    "new_permit",
+    "other",
+  ]).optional(),
+  renewalProofValidUntil: dateSchema.optional(),
+  renewalProofAllowsWork: z.boolean().nullable().optional(),
+  workAuthorizationValidUntil: dateSchema.optional(),
+  workAuthorizationRenewalFiled: z.boolean().nullable().optional(),
 }).strict().superRefine((input, ctx) => {
-  if (input.action !== "hire") return;
+  if (input.action === "hire") {
+    if (!input.newContract) {
+      ctx.addIssue({ code: "custom", path: ["newContract"], message: "Un recrutement doit être analysé comme un nouveau contrat." });
+    }
 
-  if (!input.newContract) {
-    ctx.addIssue({ code: "custom", path: ["newContract"], message: "Un recrutement doit être analysé comme un nouveau contrat." });
-  }
+    if (input.contractType === "none") {
+      ctx.addIssue({ code: "custom", path: ["contractType"], message: "Le type de contrat envisagé est obligatoire pour un recrutement." });
+    }
 
-  if (input.contractType === "none") {
-    ctx.addIssue({ code: "custom", path: ["contractType"], message: "Le type de contrat envisagé est obligatoire pour un recrutement." });
-  }
+    if (!input.plannedStartDate) {
+      ctx.addIssue({ code: "custom", path: ["plannedStartDate"], message: "La date de prise de poste envisagée est obligatoire pour un recrutement." });
+    }
 
-  if (!input.plannedStartDate) {
-    ctx.addIssue({ code: "custom", path: ["plannedStartDate"], message: "La date de prise de poste envisagée est obligatoire pour un recrutement." });
-  }
+    if (!input.occupation) {
+      ctx.addIssue({ code: "custom", path: ["occupation"], message: "Le métier ou poste envisagé est obligatoire pour un recrutement." });
+    }
 
-  if (!input.occupation) {
-    ctx.addIssue({ code: "custom", path: ["occupation"], message: "Le métier ou poste envisagé est obligatoire pour un recrutement." });
-  }
+    if (["third_country", "algeria"].includes(input.nationalityGroup) && !input.region) {
+      ctx.addIssue({ code: "custom", path: ["region"], message: "La région d'emploi est obligatoire pour analyser un recrutement de ressortissant de pays tiers." });
+    }
 
-  if (["third_country", "algeria"].includes(input.nationalityGroup) && !input.region) {
-    ctx.addIssue({ code: "custom", path: ["region"], message: "La région d'emploi est obligatoire pour analyser un recrutement de ressortissant de pays tiers." });
-  }
+    if (
+      ["third_country", "algeria"].includes(input.nationalityGroup)
+      && input.permitType !== "none"
+      && !input.permitValidUntil
+    ) {
+      ctx.addIssue({ code: "custom", path: ["permitValidUntil"], message: "La date de fin de validité du document est obligatoire lorsqu'un document est renseigné." });
+    }
 
-  if (
-    ["third_country", "algeria"].includes(input.nationalityGroup)
-    && input.permitType !== "none"
-    && !input.permitValidUntil
-  ) {
-    ctx.addIssue({ code: "custom", path: ["permitValidUntil"], message: "La date de fin de validité du document est obligatoire lorsqu'un document est renseigné." });
-  }
+    if (input.permitType === "student" && typeof input.studentHoursPlanned !== "number") {
+      ctx.addIssue({ code: "custom", path: ["studentHoursPlanned"], message: "Le volume annuel de travail envisagé est obligatoire pour un titre étudiant." });
+    }
 
-  if (input.permitType === "student" && typeof input.studentHoursPlanned !== "number") {
-    ctx.addIssue({ code: "custom", path: ["studentHoursPlanned"], message: "Le volume annuel de travail envisagé est obligatoire pour un titre étudiant." });
-  }
-
-  if (
-    input.permitType === "student"
-    && typeof input.studentHoursPlanned === "number"
-    && input.studentHoursPlanned > 964
-    && typeof input.isApprenticeship !== "boolean"
-  ) {
-    ctx.addIssue({ code: "custom", path: ["isApprenticeship"], message: "Indiquez si le contrat est un contrat d'apprentissage lorsque le volume dépasse 964 heures." });
-  }
-
-  if (input.isApprenticeship === true && typeof input.apprenticeshipValidated !== "boolean") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["apprenticeshipValidated"],
-      message: "Indiquez si le contrat d'apprentissage a été validé par le service compétent.",
-    });
-  }
-
-  if (input.offerPublishedThreeWeeks === true && typeof input.noValidCandidateReceived !== "boolean") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["noValidCandidateReceived"],
-      message: "Indiquez si aucune candidature valable n'a été reçue après la publication de l'offre.",
-    });
-  }
-
-  const likelyNeedsWorkAuthorization = input.nationalityGroup === "third_country" && (
-    input.permitType === "none"
-    || (["employee", "temporary_worker"].includes(input.permitType) && input.newContract)
-    || (
+    if (
       input.permitType === "student"
       && typeof input.studentHoursPlanned === "number"
       && input.studentHoursPlanned > 964
-      && input.isApprenticeship !== true
-    )
-  );
+      && typeof input.isApprenticeship !== "boolean"
+    ) {
+      ctx.addIssue({ code: "custom", path: ["isApprenticeship"], message: "Indiquez si le contrat est un contrat d'apprentissage lorsque le volume dépasse 964 heures." });
+    }
 
-  if (
-    likelyNeedsWorkAuthorization
-    && input.workAuthorizationGrantedForContract !== true
-    && typeof input.salaryGrossMonthly !== "number"
-  ) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["salaryGrossMonthly"],
-      message: "La rémunération brute mensuelle proposée est obligatoire lorsqu'une autorisation de travail doit être instruite.",
-    });
+    if (input.isApprenticeship === true && typeof input.apprenticeshipValidated !== "boolean") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["apprenticeshipValidated"],
+        message: "Indiquez si le contrat d'apprentissage a été validé par le service compétent.",
+      });
+    }
+
+    if (input.offerPublishedThreeWeeks === true && typeof input.noValidCandidateReceived !== "boolean") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["noValidCandidateReceived"],
+        message: "Indiquez si aucune candidature valable n'a été reçue après la publication de l'offre.",
+      });
+    }
+
+    const likelyNeedsWorkAuthorization = input.nationalityGroup === "third_country" && (
+      input.permitType === "none"
+      || (["employee", "temporary_worker"].includes(input.permitType) && input.newContract)
+      || (
+        input.permitType === "student"
+        && typeof input.studentHoursPlanned === "number"
+        && input.studentHoursPlanned > 964
+        && input.isApprenticeship !== true
+      )
+    );
+
+    if (
+      likelyNeedsWorkAuthorization
+      && input.workAuthorizationGrantedForContract !== true
+      && typeof input.salaryGrossMonthly !== "number"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["salaryGrossMonthly"],
+        message: "La rémunération brute mensuelle proposée est obligatoire lorsqu'une autorisation de travail doit être instruite.",
+      });
+    }
+  }
+
+  if (input.action === "renew" && ["third_country", "algeria"].includes(input.nationalityGroup)) {
+    if (input.permitType === "none") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["permitType"],
+        message: "Le titre actuellement renouvelé doit être identifié pour analyser un renouvellement.",
+      });
+    }
+
+    if (!input.permitValidUntil) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["permitValidUntil"],
+        message: "La date de fin de validité du titre actuel est obligatoire pour analyser un renouvellement.",
+      });
+    }
   }
 });
 
@@ -146,5 +179,9 @@ export function validateAssessmentInput(input: Partial<AssessmentInput>): Assess
     temporaryDocumentAllowsWork: parsed.data.temporaryDocumentAllowsWork ?? null,
     workAuthorizationGrantedForContract: parsed.data.workAuthorizationGrantedForContract ?? null,
     employerVerificationCompleted: parsed.data.employerVerificationCompleted ?? null,
+    renewalFiled: parsed.data.renewalFiled ?? null,
+    renewalProofType: parsed.data.renewalProofType ?? "none",
+    renewalProofAllowsWork: parsed.data.renewalProofAllowsWork ?? null,
+    workAuthorizationRenewalFiled: parsed.data.workAuthorizationRenewalFiled ?? null,
   };
 }
