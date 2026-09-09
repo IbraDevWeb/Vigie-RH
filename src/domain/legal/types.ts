@@ -42,6 +42,7 @@ export interface AssessmentInput {
   studentHoursPlanned?: number;
   jobInShortageList?: boolean | null;
   offerPublishedThreeWeeks?: boolean | null;
+  noValidCandidateReceived?: boolean | null;
   temporaryDocumentAllowsWork?: boolean | null;
 }
 
