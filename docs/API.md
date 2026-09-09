@@ -37,7 +37,7 @@ Les réponses tri-state utilisent `true`, `false` ou `null`. `null` signifie que
 - `isApprenticeship` / `apprenticeshipValidated` : qualification de l'exception apprentissage ;
 - `registeredWithFranceTravail` : présence d'un justificatif d'inscription France Travail pour l'exception modélisée aux vérifications préalables ;
 - `employerVerificationCompleted` : vérification préfectorale déclarée accomplie lorsque celle-ci reste requise ;
-- `studentDeclarationCompleted` : déclaration nominative préalable propre à l'embauche d'un étudiant ;
+- `studentPrefectureDeclarationCompleted` : déclaration nominative préalable propre à l'embauche d'un étudiant ;
 - `workAuthorizationGrantedForContract` : autorisation déclarée obtenue pour le contrat précis analysé ;
 - `jobInShortageList` : métier déclaré présent sur la liste applicable ;
 - `offerPublishedThreeWeeks` / `noValidCandidateReceived` : faits utilisés pour le test du marché de l'emploi.
