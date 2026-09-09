@@ -21,16 +21,21 @@ npm run dev
 ```
 Puis ouvrir `http://localhost:3000`.
 
+## Déploiement GitHub Pages
+Le workflow `.github/workflows/deploy-pages.yml` exécute les tests, le typecheck et un export statique Next.js avant de publier le dossier `out/` sur GitHub Pages.
+
+Sur GitHub Pages, le moteur d'analyse déterministe s'exécute directement dans le navigateur : aucune API serveur n'est nécessaire pour utiliser la démonstration.
+
+Site : `https://ibradevweb.github.io/Vigie-RH/`
+
 ## Routes
 - `/` : landing page
 - `/dashboard` : tableau de bord conformité
 - `/analyse` : moteur de décision guidé
 - `/salaries` : portefeuille des salariés
-- `/salaries/[id]` : dossier salarié
+- `/salaries/[id]` : dossier salarié pré-généré pour les données de démonstration
 - `/audit` : audit entreprise
 - `/sources` : registre juridique versionné
-- `/api/analyse` : API JSON du moteur de règles
-- `/api/health` : healthcheck
 
 ## Architecture
 Voir `docs/ARCHITECTURE.md` et `docs/LEGAL-GOVERNANCE.md`.
@@ -44,7 +49,7 @@ Voir `docs/ARCHITECTURE.md` et `docs/LEGAL-GOVERNANCE.md`.
 - alertes d'expiration ;
 - portefeuille et dossier salarié ;
 - audit de conformité ;
-- API d'analyse ;
+- analyse utilisable en hébergement statique GitHub Pages ;
 - tests unitaires du moteur ;
 - Dockerfile ;
 - interfaces de repository prêtes pour PostgreSQL.
