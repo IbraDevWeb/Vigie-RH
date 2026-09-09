@@ -94,13 +94,25 @@ Le parcours collecte notamment :
 
 Le moteur applique directement l'exigence de nouvelle autorisation lorsqu'un **nouveau contrat** entre dans le cas modélisé. Pour une modification sans nouveau contrat, un changement de poste, de région ou d'employeur n'est pas transformé automatiquement en nouvelle obligation : si le périmètre de l'autorisation existante n'est pas établi, le résultat passe en `review_required`. Le résultat distingue explicitement le maintien du droit au travail actuel de la possibilité d'appliquer immédiatement la modification.
 
+## Parcours « Nouvelle analyse — Peut-il travailler ? »
+Ce parcours répond à une question distincte des formalités de recrutement : **le droit au travail est-il établi aujourd'hui dans la situation actuelle ?**
+
+Il contrôle notamment :
+- la nationalité déclarée ;
+- le document actuel et sa date de validité ;
+- la mention exacte lorsqu'un récépissé ou une attestation provisoire est utilisé ;
+- pour un titre « salarié » ou « travailleur temporaire », la correspondance déclarée entre l'autorisation conservée et le contrat, l'activité et la zone d'emploi actuels ;
+- pour un étudiant, le volume annuel de travail, l'éventuelle exception apprentissage et, au-delà de 964 heures hors exception modélisée, l'existence d'une autorisation correspondant à l'activité actuelle.
+
+Le parcours ne déclenche pas artificiellement les formalités propres à une nouvelle embauche. Si le périmètre de l'autorisation actuelle est inconnu, la valeur reste inconnue et le résultat passe en `review_required`. Les documents provisoires restent également en revue lorsque leur fondement ou leur mention exacte ne permet pas une qualification automatique suffisamment sûre.
+
 ## Architecture
 Voir `docs/ARCHITECTURE.md`, `docs/LEGAL-GOVERNANCE.md` et `docs/API.md`.
 
 ## Ce qui est déjà prêt
 - UI SaaS responsive ;
-- parcours « Recruter », « Renouveler » et « Modifier » renforcés ;
-- socles « Rompre » et « Peut-il travailler ? » ;
+- parcours « Recruter », « Renouveler », « Modifier » et « Peut-il travailler ? » renforcés ;
+- socle « Rompre » ;
 - moteur de règles isolé du front ;
 - sources officielles versionnées ;
 - règles appliquées historisées dans le résultat (`appliedRules`) ;
