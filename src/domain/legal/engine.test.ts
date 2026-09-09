@@ -13,6 +13,7 @@ const base: AssessmentInput = {
   occupation: "Technicien de maintenance",
   region: "Île-de-France",
   salaryGrossMonthly: 2_500,
+  studentPrefectureDeclarationCompleted: true,
   registeredWithFranceTravail: false,
   jobInShortageList: true,
   offerPublishedThreeWeeks: null,
@@ -29,6 +30,7 @@ describe("legal rule engine — recruitment", () => {
       ...base,
       nationalityGroup: "eu_eea_swiss",
       permitType: "none",
+      studentPrefectureDeclarationCompleted: null,
       registeredWithFranceTravail: null,
       employerVerificationCompleted: null,
       workAuthorizationGrantedForContract: null,
@@ -138,6 +140,24 @@ describe("legal rule engine — recruitment", () => {
     expect(result.status).toBe("clear");
     expect(result.workAuthorization).toBe("no");
     expect(result.canWorkNow).toBe(true);
+    expect(result.sourceIds).toContain("ct-r5221-27");
+  });
+
+  it("keeps a student hire conditional until the nominative prefecture declaration is completed", () => {
+    const result = assessCase({
+      ...base,
+      permitType: "student",
+      permitValidUntil: "2027-08-31",
+      studentHoursPlanned: 700,
+      studentPrefectureDeclarationCompleted: false,
+      workAuthorizationGrantedForContract: null,
+      employerVerificationCompleted: true,
+      jobInShortageList: null,
+    }, now);
+
+    expect(result.status).toBe("conditional");
+    expect(result.canWorkNow).toBe(true);
+    expect(result.checklist.find((item) => item.id === "student-prefecture-declaration")?.status).toBe("todo");
   });
 
   it("requires work authorization above 964 hours outside the modeled apprenticeship exception", () => {
