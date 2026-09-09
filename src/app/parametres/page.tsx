@@ -1,0 +1,6 @@
+import { AppShell } from "@/components/app-shell";
+import { Badge } from "@/components/ui/badge";
+
+export default function SettingsPage() {
+  return <AppShell title="Paramètres" subtitle="Organisation, gouvernance et préférences de conformité."><div className="settings-grid"><section className="card"><p className="eyebrow">Organisation</p><h2>Atelier Conseil</h2><div className="form-stack"><label className="field"><span>Nom</span><input defaultValue="Atelier Conseil"/></label><label className="field"><span>SIREN</span><input placeholder="000 000 000"/></label><label className="field"><span>Fuseau horaire</span><input defaultValue="Europe/Paris"/></label><button className="btn primary">Enregistrer</button></div></section><section className="card"><p className="eyebrow">Moteur juridique</p><h2>Mode de sécurité</h2><p className="muted">Les cas ambigus sont bloqués pour revue plutôt que résolus par approximation.</p><div className="setting-row"><div><strong>Fail closed</strong><small>Conclusion incertaine → validation humaine</small></div><Badge tone="success">Activé</Badge></div><div className="setting-row"><div><strong>Décision par LLM</strong><small>Un modèle ne peut pas modifier le verdict</small></div><Badge>Interdit</Badge></div></section></div></AppShell>;
+}

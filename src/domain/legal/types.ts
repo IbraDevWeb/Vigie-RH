@@ -1,0 +1,99 @@
+export type ActionType = "hire" | "renew" | "modify" | "terminate" | "can_work";
+export type NationalityGroup = "france" | "eu_eea_swiss" | "third_country" | "algeria";
+export type LocationStatus = "france" | "abroad";
+export type PermitType =
+  | "none"
+  | "employee"
+  | "temporary_worker"
+  | "student"
+  | "private_family"
+  | "resident"
+  | "talent"
+  | "receipt"
+  | "extension_attestation"
+  | "other";
+export type ContractType = "cdi" | "cdd" | "none";
+export type Answer = "yes" | "no" | "review" | "not_applicable";
+export type Severity = "success" | "info" | "warning" | "danger";
+export type AssessmentStatus = "clear" | "conditional" | "blocked" | "review_required";
+
+export interface LegalSource {
+  id: string;
+  title: string;
+  authority: "legifrance" | "service-public" | "ministere";
+  url: string;
+  effectiveFrom?: string;
+  lastReviewed: string;
+  note?: string;
+}
+
+export interface AssessmentInput {
+  action: ActionType;
+  nationalityGroup: NationalityGroup;
+  location: LocationStatus;
+  permitType: PermitType;
+  permitValidUntil?: string;
+  contractType: ContractType;
+  newContract: boolean;
+  region?: string;
+  occupation?: string;
+  salaryGrossMonthly?: number;
+  studentHoursPlanned?: number;
+  jobInShortageList?: boolean;
+  offerPublishedThreeWeeks?: boolean;
+  temporaryDocumentAllowsWork?: boolean | null;
+}
+
+export interface Finding {
+  id: string;
+  title: string;
+  detail: string;
+  severity: Severity;
+  sourceIds: string[];
+}
+
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  description?: string;
+  status: "done" | "todo" | "attention" | "blocked";
+  sourceIds?: string[];
+}
+
+export interface AssessmentResult {
+  status: AssessmentStatus;
+  statusLabel: string;
+  summary: string;
+  canWorkNow: boolean | null;
+  workAuthorization: Answer;
+  employerVerification: Answer;
+  confidence: "high" | "medium" | "low";
+  findings: Finding[];
+  checklist: ChecklistItem[];
+  sourceIds: string[];
+  generatedAt: string;
+  disclaimer: string;
+}
+
+export interface RuleContext {
+  input: AssessmentInput;
+  today: Date;
+}
+
+export interface RuleOutput {
+  findings?: Finding[];
+  checklist?: ChecklistItem[];
+  sourceIds?: string[];
+  patches?: Partial<Pick<AssessmentResult, "canWorkNow" | "workAuthorization" | "employerVerification" | "confidence">>;
+  forceStatus?: AssessmentStatus;
+}
+
+export interface LegalRule {
+  id: string;
+  description: string;
+  effectiveFrom: string;
+  lastReviewed: string;
+  priority: number;
+  applies: (context: RuleContext) => boolean;
+  evaluate: (context: RuleContext) => RuleOutput;
+}
