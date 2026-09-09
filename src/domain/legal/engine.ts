@@ -1,35 +1,88 @@
 import { legalRules } from "./rules";
 import type { AssessmentInput, AssessmentResult, AssessmentStatus, RuleOutput } from "./types";
 
-const statusRank: Record<AssessmentStatus, number> = { clear: 0, conditional: 1, review_required: 2, blocked: 3 };
+const statusRank: Record<AssessmentStatus, number> = {
+  clear: 0,
+  conditional: 1,
+  blocked: 2,
+  review_required: 3,
+};
+
+function earliestIsoDate(...dates: Array<string | undefined>): string | null {
+  const available = dates.filter((date): date is string => Boolean(date)).sort();
+  return available[0] ?? null;
+}
 
 function worstStatus(a: AssessmentStatus, b?: AssessmentStatus): AssessmentStatus {
   if (!b) return a;
   return statusRank[b] > statusRank[a] ? b : a;
 }
 
-function deriveStatus(result: AssessmentResult): AssessmentStatus {
-  if (result.canWorkNow === false) return "blocked";
+function applyOperationalHireGate(input: AssessmentInput, result: AssessmentResult): void {
+  if (input.action !== "hire" || input.nationalityGroup !== "third_country") return;
+
+  const prefectureVerificationStillRequired = input.location === "france"
+    && input.registeredWithFranceTravail === false
+    && input.employerVerificationCompleted !== true;
+
+  const studentDeclarationStillRequired = input.permitType === "student"
+    && input.studentPrefectureDeclarationCompleted !== true;
+
+  if (prefectureVerificationStillRequired || studentDeclarationStillRequired) {
+    result.canWorkNow = false;
+  }
+}
+
+function deriveStatus(input: AssessmentInput, result: AssessmentResult): AssessmentStatus {
   if (result.workAuthorization === "review" || result.employerVerification === "review") return "review_required";
-  if (result.workAuthorization === "yes") return "conditional";
+
+  if (result.canWorkNow === false) {
+    if (input.action === "hire") return "conditional";
+    return "blocked";
+  }
+
+  if (
+    ["hire", "modify"].includes(input.action)
+    && result.workAuthorization === "yes"
+    && input.workAuthorizationGrantedForContract !== true
+  ) {
+    return "conditional";
+  }
+
+  if (
+    input.action === "hire"
+    && result.employerVerification === "yes"
+    && input.employerVerificationCompleted !== true
+  ) {
+    return "conditional";
+  }
+
+  if (
+    ["hire", "modify"].includes(input.action)
+    && result.employmentSituation === "review"
+    && input.workAuthorizationGrantedForContract !== true
+  ) {
+    return "conditional";
+  }
+
   return "clear";
 }
 
 function labelFor(status: AssessmentStatus): string {
   return {
     clear: "Situation claire",
-    conditional: "Possible sous conditions",
+    conditional: "Instruction possible sous conditions",
     blocked: "Prise ou maintien en poste bloqué",
-    review_required: "Validation juridique requise",
+    review_required: "Validation complémentaire requise",
   }[status];
 }
 
 function summaryFor(status: AssessmentStatus): string {
   return {
     clear: "Les informations fournies ne déclenchent pas de blocage dans le périmètre des règles modélisées.",
-    conditional: "Une ou plusieurs démarches doivent être réalisées avant ou pendant l'opération envisagée.",
-    blocked: "Le droit au travail n'est pas suffisamment établi pour permettre la prise ou le maintien en poste.",
-    review_required: "Le cas comporte une incertitude ou un régime spécial qui ne doit pas être tranché automatiquement.",
+    conditional: "Le dossier peut poursuivre son instruction, mais des démarches ou critères restent à satisfaire avant toute prise de poste ou poursuite d'activité.",
+    blocked: "Le droit au travail n'est pas établi dans la situation renseignée : la prise ou le maintien en poste n'est pas autorisé en l'état.",
+    review_required: "Cette situation comporte une information ou un régime que le moteur ne peut pas trancher automatiquement.",
   }[status];
 }
 
@@ -40,11 +93,15 @@ export function assessCase(input: AssessmentInput, now = new Date()): Assessment
     summary: "",
     canWorkNow: null,
     workAuthorization: "review",
-    employerVerification: "review",
+    employerVerification: "not_applicable",
+    employmentSituation: "not_applicable",
+    shortageOccupation: "not_applicable",
+    nextDeadline: earliestIsoDate(input.plannedStartDate, input.permitValidUntil),
     confidence: "medium",
     findings: [],
     checklist: [],
     sourceIds: [],
+    appliedRules: [],
     generatedAt: now.toISOString(),
     disclaimer: "Aide à la conformité — ne remplace pas une consultation juridique. Vérifier la version des textes et le régime spécial applicable avant décision.",
   };
@@ -55,6 +112,16 @@ export function assessCase(input: AssessmentInput, now = new Date()): Assessment
 
   for (const rule of legalRules) {
     if (!rule.applies(context)) continue;
+
+    result.appliedRules.push({
+      ruleId: rule.id,
+      version: rule.version,
+      effectiveFrom: rule.effectiveFrom,
+      lastReviewed: rule.lastReviewed,
+      sourceIds: rule.sourceIds,
+    });
+    result.sourceIds.push(...rule.sourceIds);
+
     const output: RuleOutput = rule.evaluate(context);
     if (output.patches) {
       for (const [key, value] of Object.entries(output.patches)) {
@@ -69,16 +136,23 @@ export function assessCase(input: AssessmentInput, now = new Date()): Assessment
     if (output.forceStatus) forced = worstStatus(forced, output.forceStatus);
   }
 
-  const derived = deriveStatus(result);
+  applyOperationalHireGate(input, result);
+
+  const derived = deriveStatus(input, result);
   result.status = worstStatus(derived, forced);
   result.statusLabel = labelFor(result.status);
   result.summary = summaryFor(result.status);
   result.sourceIds = [...new Set(result.sourceIds)];
   result.findings = dedupeById(result.findings);
   result.checklist = dedupeById(result.checklist);
+  result.appliedRules = dedupeByRuleId(result.appliedRules);
   return result;
 }
 
 function dedupeById<T extends { id: string }>(items: T[]): T[] {
   return [...new Map(items.map((item) => [item.id, item])).values()];
+}
+
+function dedupeByRuleId<T extends { ruleId: string }>(items: T[]): T[] {
+  return [...new Map(items.map((item) => [item.ruleId, item])).values()];
 }
