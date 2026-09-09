@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createForeignWorkerAssessment } from "@/application/create-foreign-worker-assessment";
 import { AuthorizationError } from "@/application/authorization";
 import { ValidationError } from "@/domain/legal/validation";
-import { getAssessmentRepository, PersistenceConfigurationError } from "@/infrastructure/repositories/assessment-repository-provider";
+import { getAssessmentRepository } from "@/infrastructure/repositories/assessment-repository-provider";
+import { PersistenceConfigurationError } from "@/infrastructure/repositories/persistence-configuration-error";
 import { AuthenticationConfigurationError, resolveServerActor } from "@/infrastructure/security/request-actor";
 
 export async function POST(request: Request) {
