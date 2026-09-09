@@ -130,7 +130,7 @@ export const baseRules: LegalRule[] = [
     description: "La catégorie Talent générique doit être qualifiée avant de déduire une dispense.",
     effectiveFrom: "2026-04-26",
     lastReviewed: "2026-09-09",
-    sourceIds: ["ct-r5221-2"],
+    sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
     priority: 160,
     applies: ({ input }) => input.nationalityGroup === "third_country" && input.permitType === "talent",
     evaluate: () => ({
@@ -138,16 +138,16 @@ export const baseRules: LegalRule[] = [
       patches: { canWorkNow: null, workAuthorization: "review", employerVerification: "review", confidence: "low" },
       findings: [{
         id: "talent-review",
-        title: "Sous-catégorie Talent à préciser",
-        detail: "Le formulaire actuel ne collecte pas le fondement exact et le périmètre d'activité du titre Talent. Le moteur ne conclut donc pas automatiquement sur la compatibilité du poste envisagé.",
+        title: "Périmètre du titre Talent à préciser",
+        detail: "La carte Talent dispense en principe l'employeur d'une autorisation de travail distincte pour l'activité qu'elle autorise. Le formulaire actuel ne qualifie pas encore la sous-catégorie et la correspondance entre cette activité et le poste envisagé : le moteur reste donc en revue complémentaire.",
         severity: "warning",
-        sourceIds: ["ct-r5221-2"],
+        sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
       }],
       checklist: [{
         id: "talent-basis",
         label: "Identifier la sous-catégorie Talent et vérifier que l'activité envisagée correspond au titre",
         status: "attention",
-        sourceIds: ["ct-r5221-2"],
+        sourceIds: ["ct-r5221-2", "sp-autorisation-travail"],
       }],
     }),
   },
@@ -172,14 +172,70 @@ export const baseRules: LegalRule[] = [
     }),
   },
   {
-    id: "hire-prefecture-verification",
-    version: 2,
-    description: "Avant l'embauche en France, l'employeur vérifie la régularité du séjour auprès du préfet.",
+    id: "hire-prefecture-verification-france-travail-exempt",
+    version: 1,
+    description: "Justificatif d'inscription France Travail : exception aux vérifications R. 5221-41 et R. 5221-42.",
     effectiveFrom: "2021-04-01",
     lastReviewed: "2026-09-09",
-    sourceIds: ["ct-r5221-41", "ct-r5221-42", "sp-autorisation-travail"],
+    sourceIds: ["ct-r5221-43", "sp-autorisation-travail"],
+    priority: 145,
+    applies: ({ input }) => input.action === "hire"
+      && input.nationalityGroup === "third_country"
+      && input.location === "france"
+      && input.registeredWithFranceTravail === true,
+    evaluate: () => ({
+      patches: { employerVerification: "no" },
+      findings: [{
+        id: "prefecture-verification-france-travail-exempt",
+        title: "Vérification préfectorale non requise dans le cas déclaré",
+        detail: "La personne est déclarée comme produisant un justificatif d'inscription sur la liste des demandeurs d'emploi France Travail. L'article R. 5221-43 écarte alors les vérifications prévues aux articles R. 5221-41 et R. 5221-42.",
+        severity: "success",
+        sourceIds: ["ct-r5221-43", "sp-autorisation-travail"],
+      }],
+      checklist: [{
+        id: "archive-france-travail-proof",
+        label: "Archiver le justificatif d'inscription France Travail",
+        status: "todo",
+        sourceIds: ["ct-r5221-43"],
+      }],
+    }),
+  },
+  {
+    id: "hire-prefecture-verification-unknown",
+    version: 1,
+    description: "Le moteur ne tranche pas la vérification préfectorale si l'exception France Travail n'est pas renseignée.",
+    effectiveFrom: "2021-04-01",
+    lastReviewed: "2026-09-09",
+    sourceIds: ["ct-r5221-41", "ct-r5221-42", "ct-r5221-43"],
+    priority: 145,
+    applies: ({ input }) => input.action === "hire"
+      && input.nationalityGroup === "third_country"
+      && input.location === "france"
+      && typeof input.registeredWithFranceTravail !== "boolean",
+    evaluate: () => ({
+      forceStatus: "review_required",
+      patches: { employerVerification: "review", confidence: "low" },
+      findings: [{
+        id: "prefecture-verification-unknown",
+        title: "Exception France Travail à renseigner",
+        detail: "Le moteur doit savoir si la personne produit un justificatif d'inscription sur la liste des demandeurs d'emploi avant de conclure sur l'obligation de vérification préfectorale.",
+        severity: "warning",
+        sourceIds: ["ct-r5221-41", "ct-r5221-42", "ct-r5221-43"],
+      }],
+    }),
+  },
+  {
+    id: "hire-prefecture-verification",
+    version: 3,
+    description: "Avant l'embauche en France, hors exception modélisée, l'employeur vérifie la régularité du séjour auprès du préfet.",
+    effectiveFrom: "2021-04-01",
+    lastReviewed: "2026-09-09",
+    sourceIds: ["ct-r5221-41", "ct-r5221-42", "ct-r5221-43", "sp-autorisation-travail"],
     priority: 140,
-    applies: ({ input }) => input.action === "hire" && input.nationalityGroup === "third_country" && input.location === "france",
+    applies: ({ input }) => input.action === "hire"
+      && input.nationalityGroup === "third_country"
+      && input.location === "france"
+      && input.registeredWithFranceTravail === false,
     evaluate: ({ input }) => ({
       patches: { employerVerification: "yes" },
       findings: [{
@@ -194,7 +250,7 @@ export const baseRules: LegalRule[] = [
       checklist: [{
         id: "verify-prefecture",
         label: "Effectuer la vérification préfectorale avant l'embauche",
-        description: "À anticiper au moins deux jours ouvrables avant la date effective d'embauche, sous réserve des cas dans lesquels cette vérification n'est pas requise.",
+        description: "À anticiper au moins deux jours ouvrables avant la date effective d'embauche.",
         status: input.employerVerificationCompleted === true ? "done" : "todo",
         sourceIds: ["ct-r5221-41", "ct-r5221-42", "sp-autorisation-travail"],
       }],
