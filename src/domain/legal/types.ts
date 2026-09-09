@@ -42,6 +42,7 @@ export interface AssessmentInput {
   studentHoursPlanned?: number;
   isApprenticeship?: boolean | null;
   apprenticeshipValidated?: boolean | null;
+  registeredWithFranceTravail?: boolean | null;
   jobInShortageList?: boolean | null;
   offerPublishedThreeWeeks?: boolean | null;
   noValidCandidateReceived?: boolean | null;
