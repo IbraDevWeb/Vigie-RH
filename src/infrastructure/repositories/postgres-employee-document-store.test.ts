@@ -12,6 +12,7 @@ const record: EmployeeDocumentRecord = {
   storageKey: "org/employee/document.pdf",
   issuedAt: "2026-01-10",
   validUntil: "2027-01-09",
+  isCurrent: true,
   extractedFields: {},
   extractionConfidence: null,
   confirmedByUserId: null,
@@ -29,6 +30,7 @@ function row() {
     storage_key: record.storageKey,
     issued_at: record.issuedAt,
     valid_until: record.validUntil,
+    is_current: record.isCurrent,
     extracted_fields: record.extractedFields,
     extraction_confidence: record.extractionConfidence,
     confirmed_by_user_id: record.confirmedByUserId,
@@ -56,7 +58,27 @@ describe("PostgresEmployeeDocumentStore", () => {
     expect(calls[2]?.text).toContain("insert into employee_documents");
     expect(calls[2]?.values?.[1]).toBe(record.organizationId);
     expect(calls[2]?.values?.[2]).toBe(record.employeeId);
+    expect(calls[2]?.values?.[8]).toBe(true);
     expect(calls.at(-1)?.text).toBe("commit");
+  });
+
+  it("lists documents by organization for read-model aggregation", async () => {
+    const calls: Array<{ text: string; values?: unknown[] }> = [];
+    const client = {
+      query: async (text: string, values?: unknown[]) => {
+        calls.push({ text, values });
+        return text.includes("where organization_id = $1") ? { rows: [row()] } : { rows: [] };
+      },
+      release: () => undefined,
+    };
+    const pool = { connect: async () => client } as unknown as Pool;
+
+    const documents = await new PostgresEmployeeDocumentStore(pool)
+      .listByOrganization(record.organizationId);
+
+    expect(documents).toEqual([record]);
+    const selectCall = calls.find((call) => call.text.includes("where organization_id = $1"));
+    expect(selectCall?.values).toEqual([record.organizationId]);
   });
 
   it("filters listings by employee and organization", async () => {
@@ -64,7 +86,7 @@ describe("PostgresEmployeeDocumentStore", () => {
     const client = {
       query: async (text: string, values?: unknown[]) => {
         calls.push({ text, values });
-        return text.includes("order by created_at desc") ? { rows: [row()] } : { rows: [] };
+        return text.includes("where employee_id = $1") ? { rows: [row()] } : { rows: [] };
       },
       release: () => undefined,
     };
@@ -74,7 +96,7 @@ describe("PostgresEmployeeDocumentStore", () => {
       .listByEmployee(record.employeeId, record.organizationId);
 
     expect(documents).toEqual([record]);
-    const selectCall = calls.find((call) => call.text.includes("order by created_at desc"));
+    const selectCall = calls.find((call) => call.text.includes("where employee_id = $1"));
     expect(selectCall?.values).toEqual([record.employeeId, record.organizationId]);
   });
 
