@@ -12,6 +12,7 @@ interface EmployeeDocumentRow {
   storage_key: string | null;
   issued_at: string | Date | null;
   valid_until: string | Date | null;
+  is_current: boolean;
   extracted_fields: Record<string, unknown>;
   extraction_confidence: string | number | null;
   confirmed_by_user_id: string | null;
@@ -40,6 +41,7 @@ function mapRow(row: EmployeeDocumentRow): EmployeeDocumentRecord {
     storageKey: row.storage_key,
     issuedAt: toIsoDate(row.issued_at),
     validUntil: toIsoDate(row.valid_until),
+    isCurrent: row.is_current,
     extractedFields: row.extracted_fields ?? {},
     extractionConfidence: row.extraction_confidence === null ? null : Number(row.extraction_confidence),
     confirmedByUserId: row.confirmed_by_user_id,
@@ -49,7 +51,7 @@ function mapRow(row: EmployeeDocumentRow): EmployeeDocumentRecord {
 }
 
 const selectColumns = `id, organization_id, employee_id, document_type, label, storage_key,
-  issued_at, valid_until, extracted_fields, extraction_confidence,
+  issued_at, valid_until, is_current, extracted_fields, extraction_confidence,
   confirmed_by_user_id, confirmed_at, created_at`;
 
 export class PostgresEmployeeDocumentStore implements EmployeeDocumentStore {
@@ -67,12 +69,13 @@ export class PostgresEmployeeDocumentStore implements EmployeeDocumentStore {
           storage_key,
           issued_at,
           valid_until,
+          is_current,
           extracted_fields,
           extraction_confidence,
           confirmed_by_user_id,
           confirmed_at,
           created_at
-        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)`,
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14)`,
         [
           record.id,
           record.organizationId,
@@ -82,6 +85,7 @@ export class PostgresEmployeeDocumentStore implements EmployeeDocumentStore {
           record.storageKey,
           record.issuedAt,
           record.validUntil,
+          record.isCurrent,
           JSON.stringify(record.extractedFields),
           record.extractionConfidence,
           record.confirmedByUserId,
