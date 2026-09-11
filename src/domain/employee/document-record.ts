@@ -7,6 +7,7 @@ export interface EmployeeDocumentRecord {
   storageKey: string | null;
   issuedAt: string | null;
   validUntil: string | null;
+  isCurrent: boolean;
   extractedFields: Record<string, unknown>;
   extractionConfidence: number | null;
   confirmedByUserId: string | null;
@@ -20,4 +21,5 @@ export interface CreateEmployeeDocumentInput {
   storageKey?: string | null;
   issuedAt?: string | null;
   validUntil?: string | null;
+  isCurrent?: boolean;
 }
