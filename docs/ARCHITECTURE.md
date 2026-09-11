@@ -48,7 +48,8 @@ La création d'une tâche vérifie dans la couche application que ses référenc
 
 En mode serveur :
 - `/api/analyse` utilise `createForeignWorkerAssessment` ;
-- `/api/compliance/overview` expose le read-model agrégé.
+- `/api/compliance/overview` expose le read-model agrégé ;
+- `/dashboard` consomme directement le même use-case de read-model et remplace les indicateurs de démonstration par des métriques issues des données persistées.
 
 Les futurs use-cases doivent rester dans cette couche et dépendre de ports plutôt que d'adapters concrets.
 
@@ -84,7 +85,7 @@ Le workflow retire `src/app/api` uniquement après la validation PostgreSQL, les
 
 Le bridge ne contient aucune règle juridique et ne reçoit aucun secret PostgreSQL : il délègue au même use-case pur et au même moteur que le serveur.
 
-Les pages `/salaries` et `/salaries/[id]` conservent pour l'instant leur read-model de démonstration statique afin que GitHub Pages reste fonctionnel. Leur raccordement au backend serveur reste une tranche séparée.
+Le dashboard conserve son portefeuille de démonstration uniquement pendant l'export GitHub Pages. En mode serveur, il utilise le read-model persistant. Les pages `/salaries` et `/salaries/[id]` conservent encore leur read-model de démonstration statique afin que GitHub Pages reste fonctionnel ; leur raccordement serveur constitue la tranche suivante.
 
 ## Front
 Le wizard est un composant client. Il collecte des réponses tri-state (`true` / `false` / `null`) et transporte `null` jusqu'au moteur comme information inconnue.
@@ -102,6 +103,8 @@ Le résultat affiche notamment :
 - findings et plan d'action ;
 - sources ;
 - règles appliquées et versions.
+
+Le dashboard serveur affiche des compteurs et priorités vérifiables issus du read-model. Il n'affiche pas de « score de conformité » synthétique : la métrique de couverture indique uniquement la proportion de salariés disposant d'au moins un assessment explicitement rattaché.
 
 ## Sources et IA
 Le verdict ne dépend d'aucun LLM. Un futur OCR/LLM peut extraire des champs documentaires, mais ces champs doivent rester confirmables avant d'être injectés dans le moteur déterministe.
@@ -125,12 +128,13 @@ Déjà amorcé :
 - isolation tenant applicative + policies RLS ;
 - RBAC applicatif owner / HR / advisor / read-only ;
 - intégrité tenant renforcée entre les principales entités persistées ;
-- read-model serveur de conformité sans score juridique inventé.
+- read-model serveur de conformité sans score juridique inventé ;
+- dashboard serveur alimenté par ce read-model.
 
 À raccorder avant un usage réel :
 - fournisseur d'identité/session et résolution des memberships ;
 - génération contrôlée des tâches depuis les résultats du moteur ;
-- raccordement des pages salariés et du dashboard au read-model serveur ;
+- raccordement des pages salariés au backend/read-model serveur ;
 - stockage objet S3 compatible ;
 - chiffrement applicatif des documents ;
 - antivirus / contrôles de fichier ;
