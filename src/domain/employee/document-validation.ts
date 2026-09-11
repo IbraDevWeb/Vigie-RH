@@ -20,6 +20,7 @@ const createEmployeeDocumentSchema = z.object({
   storageKey: optionalStorageKey,
   issuedAt: nullableIsoDate,
   validUntil: nullableIsoDate,
+  isCurrent: z.boolean().optional(),
 }).strict().superRefine((value, context) => {
   if (value.issuedAt && value.validUntil && value.issuedAt > value.validUntil) {
     context.addIssue({
