@@ -35,6 +35,7 @@ function assessmentRepositoryFor(id = "00000000-0000-4000-8000-000000000020"): A
       if (candidateId !== id || organizationId !== hr.organizationId) return null;
       return { id, organizationId } as AssessmentRecord;
     },
+    listByOrganization: async () => [],
     listByEmployee: async () => [],
   };
 }
