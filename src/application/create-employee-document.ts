@@ -28,6 +28,7 @@ export async function createEmployeeDocument(
     storageKey: validated.storageKey ?? null,
     issuedAt: validated.issuedAt ?? null,
     validUntil: validated.validUntil ?? null,
+    isCurrent: validated.isCurrent ?? false,
     extractedFields: {},
     extractionConfidence: null,
     confirmedByUserId: null,
