@@ -26,11 +26,14 @@ Le record contient notamment :
 - clé de stockage éventuelle (`storageKey`) ;
 - date d'émission ;
 - date de fin de validité ;
+- marqueur explicite `isCurrent` indiquant si le document fait partie de la situation actuelle du salarié ;
 - champs extraits et confiance d'extraction ;
 - confirmation humaine éventuelle ;
 - date de création.
 
-L'API de création de cette tranche n'accepte volontairement que les métadonnées documentaires de base (`documentType`, `label`, `storageKey`, `issuedAt`, `validUntil`). Les champs OCR/LLM et leur confirmation ne sont pas encore modifiables via cette route : ils restent réservés à une future chaîne d'extraction contrôlée.
+L'API de création accepte les métadonnées documentaires de base (`documentType`, `label`, `storageKey`, `issuedAt`, `validUntil`, `isCurrent`). Si `isCurrent` est omis, il vaut `false` : un document n'est donc jamais considéré comme actuel par simple heuristique ou parce qu'il serait le dernier document créé.
+
+Les champs OCR/LLM et leur confirmation ne sont pas encore modifiables via cette route : ils restent réservés à une future chaîne d'extraction contrôlée.
 
 ## Sécurité multi-tenant
 
@@ -45,9 +48,11 @@ Le schéma SQL renforce cette règle avec une clé étrangère composite :
 `(employee_id, organization_id) -> employees(id, organization_id)`.
 Ainsi, un document ne peut pas être rattaché à un salarié d'une autre organisation même si une future régression applicative omettait la vérification.
 
+Un index partiel sur les documents actuels permet au read-model de cibler les échéances courantes sans confondre archives et situation active.
+
 ## Validation
 
-Les dates doivent être au format `YYYY-MM-DD`, correspondre à une date calendaire réelle et respecter `issuedAt <= validUntil` lorsque les deux sont fournies.
+Les dates doivent être au format `YYYY-MM-DD`, correspondre à une date calendaire réelle et respecter `issuedAt <= validUntil` lorsque les deux sont fournies. `isCurrent` doit être un booléen lorsqu'il est fourni.
 
 ## Hors périmètre actuel
 
