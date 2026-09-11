@@ -25,13 +25,31 @@ describe("employee document persistence use-cases", () => {
       issuedAt: "2026-01-10",
       validUntil: "2027-01-09",
       storageKey: "org/employee/document.pdf",
+      isCurrent: true,
     }, documents, employees, hr, new Date("2026-09-09T18:00:00.000Z"));
 
     expect(document.organizationId).toBe(hr.organizationId);
     expect(document.employeeId).toBe(employee.id);
+    expect(document.isCurrent).toBe(true);
     expect(document.extractedFields).toEqual({});
     expect(document.confirmedAt).toBeNull();
     await expect(listEmployeeDocuments(employee.id, documents, employees, hr)).resolves.toHaveLength(1);
+  });
+
+  it("defaults an omitted current marker to historical", async () => {
+    const employees = new InMemoryEmployeeStore();
+    const documents = new InMemoryEmployeeDocumentStore();
+    const employee = await createEmployee({ firstName: "Nora", lastName: "Martin" }, employees, hr);
+
+    const document = await createEmployeeDocument(
+      employee.id,
+      { documentType: "archive", label: "Ancien titre" },
+      documents,
+      employees,
+      hr,
+    );
+
+    expect(document.isCurrent).toBe(false);
   });
 
   it("refuses to attach a document to an employee from another organization", async () => {
