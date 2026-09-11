@@ -11,6 +11,8 @@
 - comptage des tâches ouvertes/retardées, documents actuels expirés/à échéance et salariés sans assessment ;
 - génération d'une liste de priorités fondée uniquement sur tâches ouvertes et échéances de documents actuels ;
 - ajout de `GET /api/compliance/overview` en mode serveur ;
+- raccordement du dashboard serveur au read-model avec remplacement du score fictif par une couverture d'assessments vérifiable ;
+- conservation du dashboard de démonstration uniquement pour l'export statique GitHub Pages ;
 - documentation dédiée dans `docs/COMPLIANCE-READ-MODEL.md`.
 
 ## 2026-09-09 — Tâches de conformité persistantes
