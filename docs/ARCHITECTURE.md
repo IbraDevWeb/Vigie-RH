@@ -27,12 +27,16 @@ Le domaine applique une stratégie fail-closed : lorsqu'une information juridiqu
 
 Les cinq parcours principaux sont isolés par règles et/ou étapes dédiées : recruter, renouveler, modifier, contrôler le droit au travail actuel et rompre. La branche « Rompre » ne transforme jamais automatiquement la perte du droit au travail en décision de licenciement.
 
-Le domaine `employee` distingue le read-model de démonstration utilisé par GitHub Pages des records persistants serveur pour les salariés et leurs métadonnées documentaires. Le domaine `compliance` contient maintenant le record de tâche, ses états, sévérités et validations.
+Le domaine `employee` distingue le read-model de démonstration utilisé par GitHub Pages des records persistants serveur pour les salariés et leurs métadonnées documentaires. Chaque document persistant porte désormais un marqueur explicite `isCurrent`, afin qu'une archive ne soit jamais interprétée comme situation courante par heuristique.
+
+Le domaine `compliance` contient le record de tâche, ses états et sévérités ainsi que le contrat du read-model opérationnel de conformité.
 
 ## Application
 Deux usages juridiques sont distincts :
 - `assessForeignWorkerCase` : validation + exécution pure du moteur ;
 - `createForeignWorkerAssessment` : autorisation de l'acteur + validation + exécution + création d'un identifiant + sauvegarde du snapshot et des versions de règles appliquées.
+
+Un assessment peut être rattaché explicitement à un salarié par `employeeId`. Les analyses générales restent possibles sans rattachement. Aucun rapprochement d'assessment vers un salarié n'est effectué par nom ou autre heuristique.
 
 Le contexte applicatif d'un acteur contient `userId`, `organizationId` et un rôle (`owner`, `hr`, `advisor`, `readonly`). Les permissions sont vérifiées dans la couche application, pas dans React.
 
@@ -40,7 +44,11 @@ Les opérations persistantes sur assessments, salariés, documents et tâches su
 
 La création d'une tâche vérifie dans la couche application que ses références optionnelles vers un salarié ou un assessment existent dans l'organisation courante. Le changement d'état est séparé des autres mutations et gère `completedAt`.
 
-En mode serveur, l'API `/api/analyse` utilise `createForeignWorkerAssessment`. La réponse contient un `assessmentId` et le `result` du moteur.
+`getComplianceOverview` charge les salariés, documents, assessments et tâches par organisation puis construit une vue opérationnelle en mémoire. Seuls les documents `isCurrent = true` participent aux échéances. L'absence de signal ne devient jamais automatiquement un verdict juridique « conforme » : sans assessment salarié, la vue reste `unknown` sauf signal plus fort.
+
+En mode serveur :
+- `/api/analyse` utilise `createForeignWorkerAssessment` ;
+- `/api/compliance/overview` expose le read-model agrégé.
 
 Les futurs use-cases doivent rester dans cette couche et dépendre de ports plutôt que d'adapters concrets.
 
@@ -54,9 +62,13 @@ Ports et adapters présents :
 
 Les stores PostgreSQL sont tenant-scoped. Chaque opération reçoit `organizationId` et passe par `withPostgresTenant`, qui renseigne `vigie.organization_id` à l'intérieur d'une transaction avant les requêtes métier.
 
+Les repositories utilisés par le read-model disposent d'opérations de lecture par organisation, afin d'éviter un N+1 par salarié lors de l'agrégation du dashboard.
+
 Les providers sélectionnent PostgreSQL lorsque `DATABASE_URL` est défini. Le fallback mémoire est interdit en environnement serveur de production afin d'éviter une perte silencieuse de données.
 
 Le schéma PostgreSQL est décrit dans `db/schema.sql`. `db/rls.sql` active des policies Row-Level Security sur les tables tenant-scoped. Des clés étrangères composites renforcent l'intégrité tenant des liens document → salarié, assessment → salarié et tâche → salarié/assessment. Le futur utilisateur assigné à une tâche doit également correspondre à un membership de la même organisation.
+
+Un index partiel cible les documents actuels afin de faciliter les lectures d'échéances sans mélanger les archives.
 
 ### Identité serveur
 `resolveServerActor()` fournit uniquement un acteur de démonstration en environnement de développement. En production serveur, aucun utilisateur implicite n'est créé : tant qu'un véritable fournisseur d'identité/session n'est pas raccordé, l'API échoue explicitement.
@@ -68,11 +80,11 @@ L'API des tâches n'accepte pas encore d'assignation utilisateur afin de ne pas 
 ### Adapter GitHub Pages
 GitHub Pages ne peut pas exécuter de route POST Next.js. Le build Pages utilise donc `StaticPagesAnalysisBridge`, un adapter d'infrastructure client qui intercepte uniquement les appels d'analyse et exécute `assessForeignWorkerCase` dans le navigateur.
 
-Le workflow retire `src/app/api` uniquement après les tests et le typecheck, juste avant `next build` en mode `output: export`. En développement ou sur un hébergement serveur, les routes API restent présentes.
+Le workflow retire `src/app/api` uniquement après la validation PostgreSQL, les tests et le typecheck, juste avant `next build` en mode `output: export`. En développement ou sur un hébergement serveur, les routes API restent présentes.
 
 Le bridge ne contient aucune règle juridique et ne reçoit aucun secret PostgreSQL : il délègue au même use-case pur et au même moteur que le serveur.
 
-Les pages `/salaries` et `/salaries/[id]` conservent pour l'instant leur read-model de démonstration statique afin que GitHub Pages reste fonctionnel. Le raccordement UI au backend serveur sera traité séparément.
+Les pages `/salaries` et `/salaries/[id]` conservent pour l'instant leur read-model de démonstration statique afin que GitHub Pages reste fonctionnel. Leur raccordement au backend serveur reste une tranche séparée.
 
 ## Front
 Le wizard est un composant client. Il collecte des réponses tri-state (`true` / `false` / `null`) et transporte `null` jusqu'au moteur comme information inconnue.
@@ -99,24 +111,26 @@ Les colonnes `extracted_fields`, `extraction_confidence`, `confirmed_by_user_id`
 ## CI et déploiement
 `.github/workflows/deploy-pages.yml` exécute :
 1. installation des dépendances ;
-2. tests Vitest ;
-3. typecheck TypeScript ;
-4. préparation de l'export statique ;
-5. build Next.js ;
-6. upload de l'artefact Pages ;
-7. déploiement uniquement depuis `main`.
+2. chargement réel de `db/schema.sql` puis `db/rls.sql` dans PostgreSQL 16 ;
+3. tests Vitest ;
+4. typecheck TypeScript ;
+5. préparation de l'export statique ;
+6. build Next.js ;
+7. upload de l'artefact Pages ;
+8. déploiement uniquement depuis `main`.
 
 ## Production target
 Déjà amorcé :
 - PostgreSQL pour assessments, salariés, métadonnées documentaires et tâches de conformité ;
 - isolation tenant applicative + policies RLS ;
 - RBAC applicatif owner / HR / advisor / read-only ;
-- intégrité tenant renforcée entre les principales entités persistées.
+- intégrité tenant renforcée entre les principales entités persistées ;
+- read-model serveur de conformité sans score juridique inventé.
 
 À raccorder avant un usage réel :
 - fournisseur d'identité/session et résolution des memberships ;
 - génération contrôlée des tâches depuis les résultats du moteur ;
-- read-model serveur de conformité et raccordement du dashboard ;
+- raccordement des pages salariés et du dashboard au read-model serveur ;
 - stockage objet S3 compatible ;
 - chiffrement applicatif des documents ;
 - antivirus / contrôles de fichier ;
@@ -127,4 +141,4 @@ Déjà amorcé :
 - import légal versionné et signé ;
 - tests E2E sur les parcours critiques.
 
-Voir aussi `docs/PERSISTENCE-RBAC.md`, `docs/EMPLOYEE-PERSISTENCE.md`, `docs/EMPLOYEE-DOCUMENTS.md` et `docs/COMPLIANCE-TASKS.md`.
+Voir aussi `docs/PERSISTENCE-RBAC.md`, `docs/EMPLOYEE-PERSISTENCE.md`, `docs/EMPLOYEE-DOCUMENTS.md`, `docs/COMPLIANCE-TASKS.md` et `docs/COMPLIANCE-READ-MODEL.md`.
