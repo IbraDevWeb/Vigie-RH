@@ -50,6 +50,7 @@ create table employee_documents (
   storage_key text,
   issued_at date,
   valid_until date,
+  is_current boolean not null default false,
   extracted_fields jsonb not null default '{}'::jsonb,
   extraction_confidence numeric(5,4) check (extraction_confidence between 0 and 1),
   confirmed_by_user_id uuid references users(id),
@@ -61,6 +62,8 @@ create table employee_documents (
 );
 create index employee_documents_expiry_idx on employee_documents(organization_id, valid_until);
 create index employee_documents_employee_idx on employee_documents(organization_id, employee_id, created_at desc);
+create index employee_documents_current_idx on employee_documents(organization_id, employee_id, document_type, valid_until)
+  where is_current;
 
 create table legal_sources (
   id text primary key,
