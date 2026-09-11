@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-11 — Read-model de conformité
+
+- ajout d'un read-model serveur agrégeant salariés, documents, assessments et tâches par organisation ;
+- aucun score de conformité synthétique : la vue distingue uniquement les signaux opérationnels vérifiables et conserve `unknown` lorsque l'historique est insuffisant ;
+- ajout d'un rattachement explicite optionnel `employeeId` sur les assessments persistants et de lectures par salarié/organisation ;
+- ajout du marqueur documentaire `isCurrent`, avec valeur sûre `false` lorsqu'il est omis ;
+- les échéances documentaires du read-model ignorent désormais explicitement les archives ;
+- ajout de lectures repository par organisation pour éviter un N+1 lors de l'agrégation ;
+- comptage des tâches ouvertes/retardées, documents actuels expirés/à échéance et salariés sans assessment ;
+- génération d'une liste de priorités fondée uniquement sur tâches ouvertes et échéances de documents actuels ;
+- ajout de `GET /api/compliance/overview` en mode serveur ;
+- documentation dédiée dans `docs/COMPLIANCE-READ-MODEL.md`.
+
 ## 2026-09-09 — Tâches de conformité persistantes
 
 - ajout d'un modèle persistant `compliance_tasks` avec états et sévérités explicites ;
