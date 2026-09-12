@@ -114,6 +114,7 @@ create table compliance_tasks (
   organization_id uuid not null references organizations(id) on delete cascade,
   employee_id uuid,
   assessment_id uuid,
+  source_key text,
   title text not null,
   due_at timestamptz,
   status text not null check (status in ('todo','doing','done','cancelled')) default 'todo',
@@ -133,6 +134,9 @@ create table compliance_tasks (
 );
 create index compliance_tasks_due_idx on compliance_tasks(organization_id, status, due_at);
 create index compliance_tasks_employee_idx on compliance_tasks(organization_id, employee_id, status, due_at);
+create unique index compliance_tasks_assessment_source_key_uidx
+  on compliance_tasks(organization_id, assessment_id, source_key)
+  where assessment_id is not null and source_key is not null;
 
 create table audit_log (
   id bigint generated always as identity primary key,
