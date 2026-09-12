@@ -29,6 +29,8 @@ Les cinq parcours principaux sont isolés par règles et/ou étapes dédiées : 
 
 Le domaine `employee` distingue le read-model de démonstration utilisé par GitHub Pages des records persistants serveur pour les salariés et leurs métadonnées documentaires. Chaque document persistant porte désormais un marqueur explicite `isCurrent`, afin qu'une archive ne soit jamais interprétée comme situation courante par heuristique.
 
+Le dossier salarié serveur agrège uniquement des données persistées explicitement rattachées au salarié : identité RH stockée, documents, assessments et tâches. Les libellés de risque, titres de démonstration et « prochaines actions » statiques ne sont jamais utilisés comme source de vérité côté serveur.
+
 Le domaine `compliance` contient le record de tâche, ses états et sévérités ainsi que le contrat du read-model opérationnel de conformité.
 
 ## Application
@@ -46,10 +48,13 @@ La création d'une tâche vérifie dans la couche application que ses référenc
 
 `getComplianceOverview` charge les salariés, documents, assessments et tâches par organisation puis construit une vue opérationnelle en mémoire. Seuls les documents `isCurrent = true` participent aux échéances. L'absence de signal ne devient jamais automatiquement un verdict juridique « conforme » : sans assessment salarié, la vue reste `unknown` sauf signal plus fort.
 
+`getEmployeeDossier` charge le salarié demandé dans l'organisation de l'acteur puis agrège ses documents, assessments et tâches. Les documents sont séparés entre `currentDocuments` et `historicalDocuments`; les assessments et tâches ne sont jamais rapprochés par heuristique.
+
 En mode serveur :
 - `/api/analyse` utilise `createForeignWorkerAssessment` ;
 - `/api/compliance/overview` expose le read-model agrégé ;
-- `/dashboard` consomme directement le même use-case de read-model et remplace les indicateurs de démonstration par des métriques issues des données persistées.
+- `/salaries` utilise les salariés persistants ;
+- `/salaries/[id]` utilise le dossier salarié persistant.
 
 Les futurs use-cases doivent rester dans cette couche et dépendre de ports plutôt que d'adapters concrets.
 
@@ -85,7 +90,7 @@ Le workflow retire `src/app/api` uniquement après la validation PostgreSQL, les
 
 Le bridge ne contient aucune règle juridique et ne reçoit aucun secret PostgreSQL : il délègue au même use-case pur et au même moteur que le serveur.
 
-Le dashboard conserve son portefeuille de démonstration uniquement pendant l'export GitHub Pages. En mode serveur, il utilise le read-model persistant. Les pages `/salaries` et `/salaries/[id]` conservent encore leur read-model de démonstration statique afin que GitHub Pages reste fonctionnel ; leur raccordement serveur constitue la tranche suivante.
+Les pages `/salaries` et `/salaries/[id]` utilisent le backend persistant en mode serveur, mais conservent un chemin de rendu de démonstration lors de l'export GitHub Pages afin que la vitrine statique reste fonctionnelle.
 
 ## Front
 Le wizard est un composant client. Il collecte des réponses tri-state (`true` / `false` / `null`) et transporte `null` jusqu'au moteur comme information inconnue.
@@ -103,8 +108,6 @@ Le résultat affiche notamment :
 - findings et plan d'action ;
 - sources ;
 - règles appliquées et versions.
-
-Le dashboard serveur affiche des compteurs et priorités vérifiables issus du read-model. Il n'affiche pas de « score de conformité » synthétique : la métrique de couverture indique uniquement la proportion de salariés disposant d'au moins un assessment explicitement rattaché.
 
 ## Sources et IA
 Le verdict ne dépend d'aucun LLM. Un futur OCR/LLM peut extraire des champs documentaires, mais ces champs doivent rester confirmables avant d'être injectés dans le moteur déterministe.
@@ -129,12 +132,12 @@ Déjà amorcé :
 - RBAC applicatif owner / HR / advisor / read-only ;
 - intégrité tenant renforcée entre les principales entités persistées ;
 - read-model serveur de conformité sans score juridique inventé ;
-- dashboard serveur alimenté par ce read-model.
+- pages salariés serveur alimentées par les données persistantes.
 
 À raccorder avant un usage réel :
 - fournisseur d'identité/session et résolution des memberships ;
+- rattachement direct du wizard d'analyse à un salarié depuis sa fiche ;
 - génération contrôlée des tâches depuis les résultats du moteur ;
-- raccordement des pages salariés au backend/read-model serveur ;
 - stockage objet S3 compatible ;
 - chiffrement applicatif des documents ;
 - antivirus / contrôles de fichier ;
