@@ -2,6 +2,13 @@
 
 import { useEffect } from "react";
 
+export const EMPLOYEE_ASSESSMENT_CREATED_EVENT = "vigie:employee-assessment-created";
+
+export interface EmployeeAssessmentCreatedDetail {
+  employeeId: string;
+  assessmentId: string;
+}
+
 function getEmployeeId(): string | null {
   const employeeId = new URLSearchParams(window.location.search).get("employeeId")?.trim();
   return employeeId || null;
@@ -32,6 +39,22 @@ function getEmployeeAnalysisRequest(
   }
 }
 
+async function publishAssessmentCreated(response: Response, employeeId: string): Promise<void> {
+  if (!response.ok) return;
+
+  try {
+    const payload = await response.clone().json() as { assessmentId?: unknown };
+    if (typeof payload.assessmentId !== "string" || !payload.assessmentId) return;
+
+    window.dispatchEvent(new CustomEvent<EmployeeAssessmentCreatedDetail>(
+      EMPLOYEE_ASSESSMENT_CREATED_EVENT,
+      { detail: { employeeId, assessmentId: payload.assessmentId } },
+    ));
+  } catch {
+    // The original response must remain untouched even if event extraction fails.
+  }
+}
+
 /**
  * UI adapter used only on the server-capable application.
  *
@@ -49,7 +72,9 @@ export function EmployeeAnalysisBridge() {
     const nativeFetch = window.fetch.bind(window);
     const bridgedFetch: typeof window.fetch = async (input, init) => {
       const scopedInput = getEmployeeAnalysisRequest(input, init, employeeId);
-      return nativeFetch(scopedInput ?? input, init);
+      const response = await nativeFetch(scopedInput ?? input, init);
+      if (scopedInput) await publishAssessmentCreated(response, employeeId);
+      return response;
     };
 
     window.fetch = bridgedFetch;
