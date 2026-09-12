@@ -8,6 +8,7 @@ const record: ComplianceTaskRecord = {
   organizationId: "00000000-0000-4000-8000-000000000001",
   employeeId: "00000000-0000-4000-8000-000000000010",
   assessmentId: "00000000-0000-4000-8000-000000000020",
+  sourceKey: "checklist:renewal",
   title: "Vérifier le renouvellement",
   dueAt: "2026-10-01T07:00:00.000Z",
   status: "todo",
@@ -23,6 +24,7 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
     organization_id: record.organizationId,
     employee_id: record.employeeId,
     assessment_id: record.assessmentId,
+    source_key: record.sourceKey,
     title: record.title,
     due_at: record.dueAt,
     status: record.status,
@@ -51,13 +53,35 @@ describe("PostgresComplianceTaskStore", () => {
     expect(calls[0]?.text).toBe("begin");
     expect(calls[1]?.values).toEqual([record.organizationId]);
     expect(calls[2]?.text).toContain("insert into compliance_tasks");
-    expect(calls[2]?.values?.slice(0, 4)).toEqual([
+    expect(calls[2]?.values?.slice(0, 5)).toEqual([
       record.id,
       record.organizationId,
       record.employeeId,
       record.assessmentId,
+      record.sourceKey,
     ]);
     expect(calls.at(-1)?.text).toBe("commit");
+  });
+
+  it("uses an atomic partial unique conflict target for generated tasks", async () => {
+    const calls: Array<{ text: string; values?: unknown[] }> = [];
+    const client = {
+      query: async (text: string, values?: unknown[]) => {
+        calls.push({ text, values });
+        if (text.includes("on conflict")) return { rows: [], rowCount: 1 };
+        return { rows: [] };
+      },
+      release: () => undefined,
+    };
+    const pool = { connect: async () => client } as unknown as Pool;
+
+    const inserted = await new PostgresComplianceTaskStore(pool).createIfAbsent(record);
+
+    expect(inserted).toBe(true);
+    const insertCall = calls.find((call) => call.text.includes("on conflict"));
+    expect(insertCall?.text).toContain("organization_id, assessment_id, source_key");
+    expect(insertCall?.text).toContain("where assessment_id is not null and source_key is not null");
+    expect(insertCall?.text).toContain("do nothing");
   });
 
   it("uses parameterized employee and status filters", async () => {
