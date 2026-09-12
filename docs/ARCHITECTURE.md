@@ -51,7 +51,8 @@ La création d'une tâche vérifie dans la couche application que ses référenc
 `getEmployeeDossier` charge le salarié demandé dans l'organisation de l'acteur puis agrège ses documents, assessments et tâches. Les documents sont séparés entre `currentDocuments` et `historicalDocuments`; les assessments et tâches ne sont jamais rapprochés par heuristique.
 
 En mode serveur :
-- `/api/analyse` utilise `createForeignWorkerAssessment` ;
+- `/api/analyse` utilise `createForeignWorkerAssessment` pour les analyses générales ;
+- `/api/employees/[id]/assessments` crée et liste les analyses explicitement rattachées au salarié après contrôle RBAC et tenant ;
 - `/api/compliance/overview` expose le read-model agrégé ;
 - `/salaries` utilise les salariés persistants ;
 - `/salaries/[id]` utilise le dossier salarié persistant.
@@ -83,12 +84,14 @@ Le rôle envoyé par un navigateur ne doit jamais devenir une source d'autorité
 
 L'API des tâches n'accepte pas encore d'assignation utilisateur afin de ne pas contourner cette future résolution de membership.
 
-### Adapter GitHub Pages
+### Adapters d'analyse côté navigateur
 GitHub Pages ne peut pas exécuter de route POST Next.js. Le build Pages utilise donc `StaticPagesAnalysisBridge`, un adapter d'infrastructure client qui intercepte uniquement les appels d'analyse et exécute `assessForeignWorkerCase` dans le navigateur.
 
 Le workflow retire `src/app/api` uniquement après la validation PostgreSQL, les tests et le typecheck, juste avant `next build` en mode `output: export`. En développement ou sur un hébergement serveur, les routes API restent présentes.
 
-Le bridge ne contient aucune règle juridique et ne reçoit aucun secret PostgreSQL : il délègue au même use-case pur et au même moteur que le serveur.
+Le bridge Pages ne contient aucune règle juridique et ne reçoit aucun secret PostgreSQL : il délègue au même use-case pur et au même moteur que le serveur.
+
+En mode serveur, `EmployeeAnalysisBridge` est activé sur `/analyse`. Lorsque la page est ouverte depuis une fiche persistante avec `?employeeId=...`, il redirige uniquement le POST du wizard vers `/api/employees/[id]/assessments`. Le paramètre navigateur ne confère aucun droit : l'endpoint salarié vérifie toujours l'acteur, l'organisation et l'existence du salarié avant la persistance.
 
 Les pages `/salaries` et `/salaries/[id]` utilisent le backend persistant en mode serveur, mais conservent un chemin de rendu de démonstration lors de l'export GitHub Pages afin que la vitrine statique reste fonctionnelle.
 
@@ -96,6 +99,8 @@ Les pages `/salaries` et `/salaries/[id]` utilisent le backend persistant en mod
 Le wizard est un composant client. Il collecte des réponses tri-state (`true` / `false` / `null`) et transporte `null` jusqu'au moteur comme information inconnue.
 
 Les parcours « Recruter », « Renouveler », « Modifier », « Peut-il travailler ? » et « Rompre » disposent d'étapes dédiées lorsque leurs faits opérationnels divergent.
+
+Depuis une fiche salarié persistante, l'action « Analyser ce salarié » ouvre le même wizard avec l'identifiant du salarié dans l'URL. L'adapter serveur décrit ci-dessus fait persister le résultat comme assessment rattaché ; une analyse ouverte directement depuis `/analyse` reste générale et non rattachée.
 
 Le résultat affiche notamment :
 - statut global ;
@@ -132,11 +137,11 @@ Déjà amorcé :
 - RBAC applicatif owner / HR / advisor / read-only ;
 - intégrité tenant renforcée entre les principales entités persistées ;
 - read-model serveur de conformité sans score juridique inventé ;
-- pages salariés serveur alimentées par les données persistantes.
+- pages salariés serveur alimentées par les données persistantes ;
+- création d'assessments explicitement rattachés depuis la fiche salarié.
 
 À raccorder avant un usage réel :
 - fournisseur d'identité/session et résolution des memberships ;
-- rattachement direct du wizard d'analyse à un salarié depuis sa fiche ;
 - génération contrôlée des tâches depuis les résultats du moteur ;
 - stockage objet S3 compatible ;
 - chiffrement applicatif des documents ;
