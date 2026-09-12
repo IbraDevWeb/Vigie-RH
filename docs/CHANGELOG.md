@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-09-12 — Pages salariés serveur
+
+- raccordement de `/salaries` aux salariés persistants en mode serveur ;
+- ajout d'un dossier salarié persistant agrégeant salarié, documents, assessments et tâches ;
+- séparation explicite des documents actuels et historiques ;
+- suppression des statuts de démonstration comme source de vérité en mode serveur ;
+- conservation du portefeuille statique de démonstration uniquement pour l'export GitHub Pages ;
+- prise en charge des identifiants salariés dynamiques en mode serveur ;
+- tests dédiés à l'isolation tenant et à l'agrégation du dossier salarié.
+
 ## 2026-09-11 — Read-model de conformité
 
 - ajout d'un read-model serveur agrégeant salariés, documents, assessments et tâches par organisation ;
@@ -11,8 +21,7 @@
 - comptage des tâches ouvertes/retardées, documents actuels expirés/à échéance et salariés sans assessment ;
 - génération d'une liste de priorités fondée uniquement sur tâches ouvertes et échéances de documents actuels ;
 - ajout de `GET /api/compliance/overview` en mode serveur ;
-- raccordement du dashboard serveur au read-model avec remplacement du score fictif par une couverture d'assessments vérifiable ;
-- conservation du dashboard de démonstration uniquement pour l'export statique GitHub Pages ;
+- raccordement du dashboard serveur au read-model persistant, avec conservation du portefeuille de démonstration pour l'export GitHub Pages ;
 - documentation dédiée dans `docs/COMPLIANCE-READ-MODEL.md`.
 
 ## 2026-09-09 — Tâches de conformité persistantes
