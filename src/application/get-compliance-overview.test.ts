@@ -59,6 +59,7 @@ function task(overrides: Partial<ComplianceTaskRecord> = {}): ComplianceTaskReco
     organizationId,
     employeeId: employee.id,
     assessmentId: null,
+    sourceKey: null,
     title: "Vérifier le renouvellement",
     dueAt: "2026-09-20T08:00:00.000Z",
     status: "todo",
