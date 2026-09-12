@@ -12,6 +12,23 @@ export class InMemoryComplianceTaskStore implements ComplianceTaskStore {
     this.records.push(structuredClone(record));
   }
 
+  async createIfAbsent(record: ComplianceTaskRecord): Promise<boolean> {
+    if (!record.assessmentId || !record.sourceKey) {
+      await this.create(record);
+      return true;
+    }
+
+    const exists = this.records.some(
+      (candidate) => candidate.organizationId === record.organizationId
+        && candidate.assessmentId === record.assessmentId
+        && candidate.sourceKey === record.sourceKey,
+    );
+    if (exists) return false;
+
+    this.records.push(structuredClone(record));
+    return true;
+  }
+
   async listByOrganization(
     organizationId: string,
     filter: ComplianceTaskListFilter = {},
