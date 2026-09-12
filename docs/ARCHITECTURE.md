@@ -27,11 +27,11 @@ Le domaine applique une stratégie fail-closed : lorsqu'une information juridiqu
 
 Les cinq parcours principaux sont isolés par règles et/ou étapes dédiées : recruter, renouveler, modifier, contrôler le droit au travail actuel et rompre. La branche « Rompre » ne transforme jamais automatiquement la perte du droit au travail en décision de licenciement.
 
-Le domaine `employee` distingue le read-model de démonstration utilisé par GitHub Pages des records persistants serveur pour les salariés et leurs métadonnées documentaires. Chaque document persistant porte désormais un marqueur explicite `isCurrent`, afin qu'une archive ne soit jamais interprétée comme situation courante par heuristique.
+Le domaine `employee` distingue le read-model de démonstration utilisé par GitHub Pages des records persistants serveur pour les salariés et leurs métadonnées documentaires. Chaque document persistant porte un marqueur explicite `isCurrent`, afin qu'une archive ne soit jamais interprétée comme situation courante par heuristique.
 
 Le dossier salarié serveur agrège uniquement des données persistées explicitement rattachées au salarié : identité RH stockée, documents, assessments et tâches. Les libellés de risque, titres de démonstration et « prochaines actions » statiques ne sont jamais utilisés comme source de vérité côté serveur.
 
-Le domaine `compliance` contient le record de tâche, ses états et sévérités ainsi que le contrat du read-model opérationnel de conformité.
+Le domaine `compliance` contient le record de tâche, ses états et sévérités ainsi que le contrat du read-model opérationnel de conformité. Les tâches générées depuis un assessment portent un `sourceKey` stable de provenance ; les tâches manuelles gardent `sourceKey = null`.
 
 ## Application
 Deux usages juridiques sont distincts :
@@ -44,7 +44,9 @@ Le contexte applicatif d'un acteur contient `userId`, `organizationId` et un rô
 
 Les opérations persistantes sur assessments, salariés, documents et tâches suivent le même principe : les use-cases reçoivent des ports, vérifient le RBAC et transportent explicitement l'organisation de l'acteur.
 
-La création d'une tâche vérifie dans la couche application que ses références optionnelles vers un salarié ou un assessment existent dans l'organisation courante. Le changement d'état est séparé des autres mutations et gère `completedAt`.
+La création manuelle d'une tâche vérifie dans la couche application que ses références optionnelles vers un salarié ou un assessment existent dans l'organisation courante. Le changement d'état est séparé des autres mutations et gère `completedAt`.
+
+`generateAssessmentComplianceTasks` transforme, uniquement à la demande de l'utilisateur, les actions ouvertes d'un assessment salarié en tâches persistantes. Le use-case ne lit que le snapshot enregistré : les checklist `done` sont ignorées, les autres utilisent leur identifiant stable comme provenance, et seule une `nextDeadline` explicitement produite par le moteur peut devenir une tâche datée. Il n'invente ni action ni échéance et n'altère pas le verdict juridique.
 
 `getComplianceOverview` charge les salariés, documents, assessments et tâches par organisation puis construit une vue opérationnelle en mémoire. Seuls les documents `isCurrent = true` participent aux échéances. L'absence de signal ne devient jamais automatiquement un verdict juridique « conforme » : sans assessment salarié, la vue reste `unknown` sauf signal plus fort.
 
@@ -53,6 +55,7 @@ La création d'une tâche vérifie dans la couche application que ses référenc
 En mode serveur :
 - `/api/analyse` utilise `createForeignWorkerAssessment` pour les analyses générales ;
 - `/api/employees/[id]/assessments` crée et liste les analyses explicitement rattachées au salarié après contrôle RBAC et tenant ;
+- `POST /api/assessments/[id]/tasks/generate` matérialise explicitement les actions ouvertes d'un assessment salarié en tâches idempotentes ;
 - `/api/compliance/overview` expose le read-model agrégé ;
 - `/salaries` utilise les salariés persistants ;
 - `/salaries/[id]` utilise le dossier salarié persistant.
@@ -70,6 +73,8 @@ Ports et adapters présents :
 Les stores PostgreSQL sont tenant-scoped. Chaque opération reçoit `organizationId` et passe par `withPostgresTenant`, qui renseigne `vigie.organization_id` à l'intérieur d'une transaction avant les requêtes métier.
 
 Les repositories utilisés par le read-model disposent d'opérations de lecture par organisation, afin d'éviter un N+1 par salarié lors de l'agrégation du dashboard.
+
+`ComplianceTaskStore.createIfAbsent` fournit l'opération atomique utilisée par la génération. PostgreSQL s'appuie sur un index unique partiel `(organization_id, assessment_id, source_key)` afin que deux déclenchements concurrents ne puissent pas créer le même suivi. L'adapter mémoire reproduit ce comportement pour les tests et le développement.
 
 Les providers sélectionnent PostgreSQL lorsque `DATABASE_URL` est défini. Le fallback mémoire est interdit en environnement serveur de production afin d'éviter une perte silencieuse de données.
 
@@ -91,7 +96,7 @@ Le workflow retire `src/app/api` uniquement après la validation PostgreSQL, les
 
 Le bridge Pages ne contient aucune règle juridique et ne reçoit aucun secret PostgreSQL : il délègue au même use-case pur et au même moteur que le serveur.
 
-En mode serveur, `EmployeeAnalysisBridge` est activé sur `/analyse`. Lorsque la page est ouverte depuis une fiche persistante avec `?employeeId=...`, il redirige uniquement le POST du wizard vers `/api/employees/[id]/assessments`. Le paramètre navigateur ne confère aucun droit : l'endpoint salarié vérifie toujours l'acteur, l'organisation et l'existence du salarié avant la persistance.
+En mode serveur, `EmployeeAnalysisBridge` est activé sur `/analyse`. Lorsque la page est ouverte depuis une fiche persistante avec `?employeeId=...`, il redirige uniquement le POST du wizard vers `/api/employees/[id]/assessments`. Le paramètre navigateur ne confère aucun droit : l'endpoint salarié vérifie toujours l'acteur, l'organisation et l'existence du salarié avant la persistance. Après une création réussie, le bridge publie seulement l'identifiant de l'assessment au composant de suivi ; la génération de tâches reste une action utilisateur distincte et serveur.
 
 Les pages `/salaries` et `/salaries/[id]` utilisent le backend persistant en mode serveur, mais conservent un chemin de rendu de démonstration lors de l'export GitHub Pages afin que la vitrine statique reste fonctionnelle.
 
@@ -101,6 +106,8 @@ Le wizard est un composant client. Il collecte des réponses tri-state (`true` /
 Les parcours « Recruter », « Renouveler », « Modifier », « Peut-il travailler ? » et « Rompre » disposent d'étapes dédiées lorsque leurs faits opérationnels divergent.
 
 Depuis une fiche salarié persistante, l'action « Analyser ce salarié » ouvre le même wizard avec l'identifiant du salarié dans l'URL. L'adapter serveur décrit ci-dessus fait persister le résultat comme assessment rattaché ; une analyse ouverte directement depuis `/analyse` reste générale et non rattachée.
+
+Après une analyse salarié réussie en mode serveur, un panneau propose « Créer les tâches de suivi ». Le clic appelle le use-case de génération contrôlée. Ce panneau n'est pas inclus dans la démo GitHub Pages statique, où aucune persistence serveur n'existe.
 
 Le résultat affiche notamment :
 - statut global ;
@@ -138,11 +145,11 @@ Déjà amorcé :
 - intégrité tenant renforcée entre les principales entités persistées ;
 - read-model serveur de conformité sans score juridique inventé ;
 - pages salariés serveur alimentées par les données persistantes ;
-- création d'assessments explicitement rattachés depuis la fiche salarié.
+- création d'assessments explicitement rattachés depuis la fiche salarié ;
+- génération contrôlée et idempotente des tâches depuis la checklist et l'échéance explicite d'un assessment salarié.
 
 À raccorder avant un usage réel :
 - fournisseur d'identité/session et résolution des memberships ;
-- génération contrôlée des tâches depuis les résultats du moteur ;
 - stockage objet S3 compatible ;
 - chiffrement applicatif des documents ;
 - antivirus / contrôles de fichier ;
