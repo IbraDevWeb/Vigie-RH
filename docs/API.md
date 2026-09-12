@@ -141,5 +141,59 @@ Réponses principales :
 
 Cette route n'existe pas dans l'artefact GitHub Pages statique.
 
+## POST `/api/assessments/{id}/tasks/generate`
+Génère, à la demande de l'utilisateur, les tâches de suivi d'un assessment **explicitement rattaché à un salarié**.
+
+Le use-case exige `task:write` et recharge l'assessment avec l'`organizationId` de l'acteur. Il ne fait aucun rapprochement par nom et refuse un assessment général non rattaché.
+
+Règles de génération :
+- checklist `done` : ignorée ;
+- checklist `todo` : tâche `info` ;
+- checklist `attention` : tâche `warning` ;
+- checklist `blocked` : tâche `critical` ;
+- aucune échéance n'est déduite pour un item de checklist ;
+- si `result.nextDeadline` est présent et valide, une tâche d'échéance distincte est créée avec cette date ;
+- les `findings` ne sont pas convertis directement en tâches.
+
+Les tâches générées portent une `sourceKey` déterministe. PostgreSQL impose une unicité par organisation + assessment + `sourceKey`, de sorte qu'un second appel est idempotent.
+
+Réponse `201` lorsqu'au moins une tâche est créée :
+```json
+{
+  "assessmentId": "uuid",
+  "employeeId": "uuid",
+  "created": [
+    {
+      "id": "uuid",
+      "sourceKey": "checklist:verify-proof",
+      "title": "Vérifier le justificatif",
+      "status": "todo",
+      "severity": "warning",
+      "dueAt": null
+    }
+  ],
+  "existingSourceKeys": []
+}
+```
+
+Réponse `200` lorsqu'aucune nouvelle tâche n'est créée, notamment si toutes les clés existent déjà.
+
+Erreurs principales :
+- `403` : rôle sans `task:write` ;
+- `404` : assessment absent ou hors organisation ;
+- `409` : assessment non rattaché à un salarié ;
+- `503` : identité ou persistence serveur non configurée.
+
+Cette route n'existe pas dans l'artefact GitHub Pages statique.
+
+## Tâches de conformité
+Les routes serveur existantes sont :
+- `GET /api/tasks` ;
+- `POST /api/tasks` pour une tâche manuelle ;
+- `GET /api/tasks/{id}` ;
+- `PATCH /api/tasks/{id}` pour changer l'état.
+
+Une tâche manuelle a `sourceKey = null`. Voir `docs/COMPLIANCE-TASKS.md` pour le cycle d'état, le RBAC et les garanties d'isolation tenant.
+
 ## GET `/api/health`
 Retourne l'état du service et le timestamp serveur courant. Cette route n'existe pas dans l'artefact GitHub Pages statique.
