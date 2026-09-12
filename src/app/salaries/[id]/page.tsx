@@ -88,8 +88,9 @@ async function ServerEmployeeDetailPage(id: string) {
   const { employee } = dossier;
   const today = dossier.generatedAt.slice(0, 10);
   const allDocuments = [...dossier.currentDocuments, ...dossier.historicalDocuments];
+  const employeeAnalysisHref = `/analyse?employeeId=${encodeURIComponent(employee.id)}`;
 
-  return <AppShell title={`${employee.firstName} ${employee.lastName}`} subtitle={`${employee.roleTitle ?? "Poste non renseigné"}${employee.workSite ? ` · ${employee.workSite}` : ""}`} action={<Link href="/analyse" className="btn secondary"><Icon name="scan"/> Analyse générale</Link>}>
+  return <AppShell title={`${employee.firstName} ${employee.lastName}`} subtitle={`${employee.roleTitle ?? "Poste non renseigné"}${employee.workSite ? ` · ${employee.workSite}` : ""}`} action={<Link href={employeeAnalysisHref} className="btn primary"><Icon name="scan"/> Analyser ce salarié</Link>}>
     <div className="detail-grid">
       <section className="card detail-profile">
         <div className="profile-head"><span className="avatar xlarge">{employee.firstName[0]}{employee.lastName[0]}</span><div><h2>{employee.firstName} {employee.lastName}</h2><p>{employee.nationalityCode ? `Nationalité : ${employee.nationalityCode}` : "Nationalité non renseignée"} · {employee.contractType ?? "Contrat non renseigné"}</p>{dossier.latestAssessment ? <Badge tone={assessmentTone(dossier.latestAssessment.resultSnapshot.status)}>{dossier.latestAssessment.resultSnapshot.statusLabel}</Badge> : <Badge>Aucun assessment</Badge>}</div></div>
