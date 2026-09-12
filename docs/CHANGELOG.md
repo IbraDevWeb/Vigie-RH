@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-12 — Analyses rattachées depuis la fiche salarié
+
+- ajout de l'action serveur « Analyser ce salarié » depuis `/salaries/[id]` ;
+- transport explicite de l'identifiant salarié jusqu'au parcours d'analyse via un adapter client dédié ;
+- redirection du POST du wizard vers `/api/employees/[id]/assessments` uniquement lorsqu'un salarié est explicitement ciblé ;
+- conservation de `/api/analyse` pour les analyses générales non rattachées ;
+- autorisation et isolation tenant toujours vérifiées côté endpoint salarié, indépendamment du paramètre navigateur ;
+- maintien du comportement de démonstration GitHub Pages sans dépendance à une API serveur.
+
 ## 2026-09-12 — Pages salariés serveur
 
 - raccordement de `/salaries` aux salariés persistants en mode serveur ;
