@@ -56,6 +56,7 @@ function task(id: string, status: ComplianceTaskRecord["status"], dueAt: string 
     organizationId,
     employeeId: employee.id,
     assessmentId: null,
+    sourceKey: null,
     title: status === "done" ? "Contrôle terminé" : "Contrôle à faire",
     dueAt,
     status,
