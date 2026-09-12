@@ -6,6 +6,12 @@ export interface ComplianceTaskRecord {
   organizationId: string;
   employeeId: string | null;
   assessmentId: string | null;
+  /**
+   * Stable provenance key for generated tasks.
+   * Manual tasks use null. Generated tasks use a deterministic key scoped to
+   * their assessment so repeated generation remains idempotent.
+   */
+  sourceKey: string | null;
   title: string;
   dueAt: string | null;
   status: ComplianceTaskStatus;
