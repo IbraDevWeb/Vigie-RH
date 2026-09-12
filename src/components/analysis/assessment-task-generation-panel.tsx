@@ -46,12 +46,15 @@ export function AssessmentTaskGenerationPanel() {
   if (!employeeId || !assessmentId) return null;
 
   async function generateTasks() {
+    const targetAssessmentId = assessmentId;
+    if (!targetAssessmentId) return;
+
     setLoading(true);
     setMessage(null);
     setError(null);
 
     try {
-      const response = await fetch(`/api/assessments/${encodeURIComponent(assessmentId)}/tasks/generate`, {
+      const response = await fetch(`/api/assessments/${encodeURIComponent(targetAssessmentId)}/tasks/generate`, {
         method: "POST",
       });
       const payload = await response.json() as GenerationResponse;
