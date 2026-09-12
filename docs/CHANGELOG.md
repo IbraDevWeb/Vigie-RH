@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-12 — Génération contrôlée des tâches depuis un assessment
+
+- ajout d'une génération explicite des tâches de suivi après une analyse rattachée à un salarié ;
+- conversion limitée aux éléments de checklist encore ouverts (`todo`, `attention`, `blocked`) ;
+- exclusion des éléments `done` et des `findings` comme source directe de tâches ;
+- aucune échéance inventée : seule `result.nextDeadline`, lorsqu'elle est réellement fournie par le moteur, produit une tâche datée ;
+- ajout d'une provenance stable `sourceKey` sur les tâches générées ;
+- idempotence garantie par une contrainte PostgreSQL partielle unique `(organization_id, assessment_id, source_key)` et par `createIfAbsent` ;
+- génération refusée pour un assessment général non rattaché à un salarié ;
+- RBAC `task:write` et isolation tenant conservés ;
+- ajout de `POST /api/assessments/[id]/tasks/generate` et d'un bouton serveur « Créer les tâches de suivi » ;
+- compatibilité GitHub Pages conservée : aucune génération persistante n'est exposée dans l'export statique.
+
 ## 2026-09-12 — Analyses rattachées depuis la fiche salarié
 
 - ajout de l'action serveur « Analyser ce salarié » depuis `/salaries/[id]` ;
