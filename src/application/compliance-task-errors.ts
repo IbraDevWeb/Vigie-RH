@@ -11,3 +11,10 @@ export class ComplianceTaskAssessmentNotFoundError extends Error {
     this.name = "ComplianceTaskAssessmentNotFoundError";
   }
 }
+
+export class AssessmentTaskGenerationRequiresEmployeeError extends Error {
+  constructor(public readonly assessmentId: string) {
+    super("La génération de tâches exige un assessment explicitement rattaché à un salarié.");
+    this.name = "AssessmentTaskGenerationRequiresEmployeeError";
+  }
+}
