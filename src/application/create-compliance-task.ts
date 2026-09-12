@@ -36,6 +36,7 @@ export async function createComplianceTask(
     organizationId: actor.organizationId,
     employeeId: validated.employeeId ?? null,
     assessmentId: validated.assessmentId ?? null,
+    sourceKey: null,
     title: validated.title,
     dueAt: validated.dueAt ? new Date(validated.dueAt).toISOString() : null,
     status: "todo",
